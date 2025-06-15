@@ -338,12 +338,12 @@ class ScreepsAPI {
 
     // Get room objects for visualization
     async getRoomObjects(roomName) {
-        return await this.request(`game/room-objects?room=${roomName}`);
+        return await this.request(`game/room-objects`, { room: roomName });
     }
 
     // Get room terrain for visualization
     async getRoomTerrain(roomName) {
-        return await this.request(`game/room-terrain?room=${roomName}`);
+        return await this.request(`game/room-terrain`, { room: roomName });
     }
 
     async getUserBadges() {

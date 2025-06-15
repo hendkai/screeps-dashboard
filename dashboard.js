@@ -756,8 +756,19 @@ class ScreepsDashboard {
             
             // First try the specific room API endpoints
             try {
-                roomObjects = await this.api.getRoomObjects(roomName);
-                console.log('Room objects from API:', roomObjects);
+                const roomResponse = await this.api.getRoomObjects(roomName);
+                console.log('Room objects API response:', roomResponse);
+                
+                // Extract objects from API response
+                if (roomResponse && roomResponse.objects) {
+                    roomObjects = roomResponse.objects;
+                } else if (Array.isArray(roomResponse)) {
+                    roomObjects = roomResponse;
+                } else {
+                    roomObjects = [];
+                }
+                
+                console.log('Processed room objects:', roomObjects);
             } catch (error) {
                 console.warn('getRoomObjects failed, trying alternative:', error);
                 
@@ -776,8 +787,19 @@ class ScreepsDashboard {
             
             // Try to get terrain data
             try {
-                roomTerrain = await this.api.getRoomTerrain(roomName);
-                console.log('Room terrain from API:', roomTerrain);
+                const terrainResponse = await this.api.getRoomTerrain(roomName);
+                console.log('Room terrain API response:', terrainResponse);
+                
+                // Extract terrain from API response
+                if (terrainResponse && terrainResponse.terrain) {
+                    roomTerrain = terrainResponse.terrain;
+                } else if (Array.isArray(terrainResponse)) {
+                    roomTerrain = terrainResponse;
+                } else {
+                    roomTerrain = new Array(2500).fill(0);
+                }
+                
+                console.log('Processed room terrain:', roomTerrain);
             } catch (error) {
                 console.warn('getRoomTerrain failed:', error);
                 // Create a default terrain (all plain)
@@ -866,13 +888,34 @@ class ScreepsDashboard {
     }
 
     drawTerrain(ctx, terrain, cellSize) {
+        // Initialize terrain grid (all plain by default)
+        const terrainGrid = new Array(2500).fill(0);
+        
+        // If terrain is an array of objects (from API), convert it
+        if (Array.isArray(terrain) && terrain.length > 0 && terrain[0].type) {
+            terrain.forEach(cell => {
+                const index = cell.y * 50 + cell.x;
+                if (cell.type === 'swamp') {
+                    terrainGrid[index] = 1;
+                } else if (cell.type === 'wall') {
+                    terrainGrid[index] = 2;
+                }
+            });
+        } else if (Array.isArray(terrain) && terrain.length === 2500) {
+            // If terrain is already a numeric array, use it directly
+            terrain.forEach((value, index) => {
+                terrainGrid[index] = value;
+            });
+        }
+        
+        // Draw the terrain grid
         for (let y = 0; y < 50; y++) {
             for (let x = 0; x < 50; x++) {
-                const terrainType = terrain[y * 50 + x];
+                const terrainType = terrainGrid[y * 50 + x];
                 let color = '#2a2a2a'; // Plain
                 
-                if (terrainType & 1) color = '#8BC34A'; // Swamp
-                if (terrainType & 2) color = '#333'; // Wall
+                if (terrainType === 1 || terrainType & 1) color = '#8BC34A'; // Swamp
+                if (terrainType === 2 || terrainType & 2) color = '#333'; // Wall
                 
                 ctx.fillStyle = color;
                 ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
