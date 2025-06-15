@@ -40,6 +40,7 @@ class ScreepsAPI {
             'user/rooms',
             'user/creeps',
             'user/structures',
+            'user/stats',
             'game/room-objects',
             'game/room-terrain',
             'game/room-status'
@@ -331,12 +332,14 @@ class ScreepsAPI {
         return await this.request("game/world-status");
     }
 
-    async getUserStats() {
-        return await this.request("user/stats");
+    async getUserStats(interval = 8) {
+        return await this.request(`user/stats?interval=${interval}`);
     }
 
     async getUserBadges() {
-        return await this.request("user/badge");
+        // Badge info is available in getUserInfo(), no separate endpoint needed
+        const userInfo = await this.getUserInfo();
+        return userInfo.badge || {};
     }
 
     async getMarketOrders() {
