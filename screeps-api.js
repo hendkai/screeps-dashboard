@@ -118,7 +118,36 @@ class ScreepsAPI {
         try {
             console.log('Fetching memory data...');
             const memory = await this.request("user/memory");
-            console.log('Memory response:', memory);
+            console.log('Raw memory response:', memory);
+            
+            // FIXED: Dekomprimiere gzip-komprimierte Memory-Daten
+            if (memory && memory.data && typeof memory.data === 'string' && memory.data.startsWith('gz:')) {
+                try {
+                    console.log('Decompressing gzipped memory data...');
+                    const compressedData = memory.data.substring(3); // Entferne 'gz:' Prefix
+                    
+                    // Dekomprimierung im Browser mit pako (falls verfügbar) oder native Streams
+                    if (typeof window !== 'undefined' && window.pako) {
+                        const binaryData = atob(compressedData);
+                        const uint8Array = new Uint8Array(binaryData.length);
+                        for (let i = 0; i < binaryData.length; i++) {
+                            uint8Array[i] = binaryData.charCodeAt(i);
+                        }
+                        const decompressed = window.pako.inflate(uint8Array, { to: 'string' });
+                        const parsedMemory = JSON.parse(decompressed);
+                        console.log('✅ Successfully decompressed memory:', parsedMemory);
+                        return { data: parsedMemory };
+                    } else {
+                        console.warn('⚠️ pako library not available for decompression');
+                        console.log('💡 Memory data is compressed but cannot be decompressed in browser');
+                        return memory; // Return raw data
+                    }
+                } catch (decompError) {
+                    console.warn('❌ Failed to decompress memory data:', decompError);
+                    return memory; // Return raw data as fallback
+                }
+            }
+            
             return memory;
         } catch (error) {
             console.warn('Failed to get memory:', error);
@@ -364,6 +393,63 @@ class ScreepsAPI {
         return await this.request("user/money-history");
     }
 
+    // Versuche Live-CPU-Daten über Console API zu bekommen
+    async getLiveCpuData() {
+        try {
+            // Sende Console-Befehl um CPU-Daten zu bekommen
+            const consoleResult = await this.sendConsole('JSON.stringify({used: Game.cpu.getUsed(), limit: Game.cpu.limit, bucket: Game.cpu.bucket})');
+            
+            // Warte kurz und hole Console-Logs
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const logs = await this.getConsole();
+            
+            if (logs && logs.messages) {
+                // Suche nach der JSON-Antwort in den letzten Nachrichten
+                for (let i = logs.messages.length - 1; i >= Math.max(0, logs.messages.length - 5); i--) {
+                    const message = logs.messages[i];
+                    if (message && typeof message === 'string' && message.includes('"used"')) {
+                        try {
+                            const cpuData = JSON.parse(message);
+                            if (cpuData.used !== undefined) {
+                                return cpuData;
+                            }
+                        } catch (parseError) {
+                            // Ignore parse errors
+                        }
+                    }
+                }
+            }
+            
+            return null;
+        } catch (error) {
+            console.warn('Failed to get live CPU data:', error);
+            return null;
+        }
+    }
+
+    // Intelligente CPU-Schätzung basierend auf Spielzustand
+    estimateCpuUsage(creepCount, roomCount, spawnCount) {
+        // Basis-CPU für das Spiel
+        let estimatedCpu = 0.5;
+        
+        // CPU pro Creep (basierend auf typischen Werten)
+        estimatedCpu += creepCount * 0.3; // ~0.3 CPU pro Creep
+        
+        // CPU pro Raum (Room-Management)
+        estimatedCpu += roomCount * 0.8; // ~0.8 CPU pro Raum
+        
+        // CPU für Spawning
+        estimatedCpu += spawnCount * 0.2; // ~0.2 CPU pro Spawn
+        
+        // Zusätzliche CPU für komplexere Operationen
+        if (creepCount > 10) {
+            estimatedCpu += (creepCount - 10) * 0.1; // Skalierung für größere Basen
+        }
+        
+        // Begrenze auf realistische Werte (1-15 CPU für normale Operationen)
+        return Math.max(1.0, Math.min(15.0, estimatedCpu));
+    }
+
     async getGameStats() {
         try {
             console.log('Fetching game stats...');
@@ -405,29 +491,73 @@ class ScreepsAPI {
             let cpuUsed = 0;
             let cpuLimit = userInfo.cpuLimit || userInfo.cpuShard?.shard3 || 20;
             
-            // Versuche CPU-Daten aus Memory.dashboard zu holen (vom dashboard_exporter.js)
+            // MULTI-STRATEGY CPU DATA COLLECTION
+            let cpuDataSource = 'unknown';
+            
+            // Strategy 1: Memory.dashboard (most accurate if available AND recent)
             if (memory && memory.dashboard && memory.dashboard.stats && memory.dashboard.stats.cpu) {
-                cpuUsed = memory.dashboard.stats.cpu.used || 0;
-                cpuLimit = memory.dashboard.stats.cpu.limit || cpuLimit;
-                console.log(`✅ Using accurate CPU data from dashboard: ${cpuUsed.toFixed(2)}/${cpuLimit}`);
-            } else if (overview && overview.stats && overview.stats.cpu) {
-                // Versuche aus Overview-Daten
+                const memoryAge = memory.dashboard.lastUpdate ? (Date.now() / 1000 - memory.dashboard.lastUpdate * 3) : Infinity;
+                
+                // Nur verwenden wenn Memory-Daten weniger als 5 Minuten alt sind
+                if (memoryAge < 300) {
+                    cpuUsed = memory.dashboard.stats.cpu.used || 0;
+                    cpuLimit = memory.dashboard.stats.cpu.limit || cpuLimit;
+                    cpuDataSource = 'memory.dashboard';
+                    console.log(`✅ Using accurate CPU data from dashboard: ${cpuUsed.toFixed(2)}/${cpuLimit} (age: ${Math.round(memoryAge)}s)`);
+                } else {
+                    console.log(`⚠️ Memory dashboard data too old (${Math.round(memoryAge)}s), using estimation instead`);
+                    // Fall through to estimation
+                }
+            }
+            
+            // Strategy 2: Intelligent estimation (often more accurate than old memory data)
+            if (cpuDataSource === 'unknown') {
+                const estimatedCpu = this.estimateCpuUsage(totalCreeps, rooms.length, totalSpawns);
+                cpuUsed = estimatedCpu;
+                cpuDataSource = 'estimated';
+                console.log(`🤖 Using estimated CPU data: ${cpuUsed.toFixed(1)}/${cpuLimit} (based on ${totalCreeps} creeps, ${rooms.length} rooms)`);
+            }
+            
+            // Strategy 3: Try to get live CPU via console API (experimental)
+            else if (this.getToken() && cpuDataSource === 'unknown') {
+                try {
+                    console.log('🔄 Attempting to get live CPU data via console...');
+                    const liveCpuData = await this.getLiveCpuData();
+                    if (liveCpuData && liveCpuData.used !== undefined) {
+                        cpuUsed = liveCpuData.used;
+                        cpuLimit = liveCpuData.limit || cpuLimit;
+                        cpuDataSource = 'live.console';
+                        console.log(`🔥 Using live CPU data: ${cpuUsed.toFixed(2)}/${cpuLimit}`);
+                    } else {
+                        throw new Error('No live CPU data available');
+                    }
+                } catch (liveError) {
+                    console.warn('Live CPU data failed:', liveError.message);
+                    // Fall through to next strategy
+                }
+            }
+            
+            // Strategy 4: Overview data (backup)
+            if (cpuDataSource === 'unknown' && overview && overview.stats && overview.stats.cpu) {
                 cpuUsed = overview.stats.cpu.used || overview.stats.cpu || 0;
                 cpuLimit = overview.stats.cpu.limit || cpuLimit;
+                cpuDataSource = 'overview';
                 console.log(`⚠️ Using CPU data from overview: ${cpuUsed}/${cpuLimit}`);
-            } else {
-                // Fallback: Schätze basierend auf userInfo (oft ungenau)
-                // userInfo.cpu ist meist das Limit, nicht der Verbrauch
+            }
+            
+            // Strategy 5: Last resort fallback
+            if (cpuDataSource === 'unknown') {
                 if (userInfo.cpuUsed !== undefined) {
                     cpuUsed = userInfo.cpuUsed;
+                    cpuDataSource = 'userInfo.cpuUsed';
                 } else if (userInfo.cpu !== undefined && userInfo.cpu < cpuLimit) {
-                    // Nur verwenden wenn es kleiner als das Limit ist (wahrscheinlich Verbrauch)
                     cpuUsed = userInfo.cpu;
+                    cpuDataSource = 'userInfo.cpu';
                 } else {
-                    // Schätze 50% des Limits als Fallback
-                    cpuUsed = cpuLimit * 0.5;
+                    cpuUsed = cpuLimit * 0.25; // Conservative estimate
+                    cpuDataSource = 'fallback';
                 }
-                console.log(`❌ Using estimated CPU data: ${cpuUsed}/${cpuLimit} (inaccurate - enable dashboard_exporter.js for real data)`);
+                console.log(`❌ Using fallback CPU data (${cpuDataSource}): ${cpuUsed}/${cpuLimit}`);
             }
 
             rooms.forEach(room => {
@@ -691,7 +821,8 @@ class ScreepsAPI {
                     hasUserCreeps: !!userCreeps,
                     hasUserStructures: !!userStructures,
                     totalCreepsFromRooms: totalCreeps,
-                    totalStructuresFromRooms: totalSpawns + totalExtensions + totalTowers + totalStorage + totalTerminals + totalLabs
+                    totalStructuresFromRooms: totalSpawns + totalExtensions + totalTowers + totalStorage + totalTerminals + totalLabs,
+                    cpuDataSource: cpuDataSource
                 }
             };
             

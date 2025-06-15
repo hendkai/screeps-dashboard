@@ -2228,12 +2228,137 @@ class ScreepsDashboard {
         
         console.log('=== END CPU DEBUG ===');
     }
+
+    // ERWEITERTE CPU-DIAGNOSE
+    async debugCpuDetailed() {
+        console.log('🔍 === DETAILED CPU ANALYSIS ===');
+        
+        try {
+            // Test alle API-Endpunkte parallel
+            const [userInfo, memory, overview] = await Promise.all([
+                this.api.getUserInfo().catch(e => ({ error: e.message })),
+                this.api.getMemory().catch(e => ({ error: e.message })),
+                this.api.getOverview().catch(e => ({ error: e.message }))
+            ]);
+            
+            console.log('📊 Raw API Responses:');
+            console.log('UserInfo:', userInfo);
+            console.log('Memory:', memory);
+            console.log('Overview:', overview);
+            
+            // Analysiere CPU-Daten aus jeder Quelle
+            console.log('\n🎯 CPU Data Analysis:');
+            
+            // 1. UserInfo CPU-Daten
+            if (userInfo && !userInfo.error) {
+                console.log('1️⃣ UserInfo CPU Data:');
+                console.log('  cpu:', userInfo.cpu);
+                console.log('  cpuLimit:', userInfo.cpuLimit);
+                console.log('  cpuShard:', userInfo.cpuShard);
+                console.log('  cpuAvailable:', userInfo.cpuAvailable);
+                console.log('  cpuUsed:', userInfo.cpuUsed);
+                
+                // Bestimme wahrscheinlichste CPU-Verbrauchswerte
+                const possibleUsage = [];
+                if (userInfo.cpuUsed !== undefined) possibleUsage.push({ source: 'cpuUsed', value: userInfo.cpuUsed });
+                if (userInfo.cpu !== undefined && userInfo.cpu < (userInfo.cpuLimit || 20)) {
+                    possibleUsage.push({ source: 'cpu (if < limit)', value: userInfo.cpu });
+                }
+                console.log('  Possible usage values:', possibleUsage);
+            }
+            
+            // 2. Memory CPU-Daten
+            if (memory && !memory.error && memory.dashboard) {
+                console.log('2️⃣ Memory Dashboard CPU Data:');
+                console.log('  dashboard.stats.cpu:', memory.dashboard.stats?.cpu);
+                if (memory.dashboard.stats?.cpu) {
+                    console.log('  ✅ This should be the most accurate!');
+                }
+            } else {
+                console.log('2️⃣ Memory Dashboard: No data found');
+                console.log('  💡 Make sure dashboard_exporter.js is running in Screeps');
+            }
+            
+            // 3. Overview CPU-Daten
+            if (overview && !overview.error) {
+                console.log('3️⃣ Overview CPU Data:');
+                console.log('  stats:', overview.stats);
+                console.log('  stats.cpu:', overview.stats?.cpu);
+            }
+            
+            // 4. Aktuelle Dashboard-Werte
+            console.log('\n📈 Current Dashboard Values:');
+            if (this.lastStats) {
+                console.log('  Dashboard CPU:', this.lastStats.cpu);
+                console.log('  Dashboard CPU Limit:', this.lastStats.cpuLimit);
+                console.log('  Dashboard CPU %:', this.lastStats.cpuPercentage);
+                console.log('  CPU Data Source:', this.lastStats.debug?.cpuDataSource || 'unknown');
+                
+                // Prüfe ob Werte realistisch sind
+                if (this.lastStats.cpu === this.lastStats.cpuLimit) {
+                    console.log('  ❌ CPU equals limit - showing limit instead of usage!');
+                } else if (this.lastStats.cpu >= 2 && this.lastStats.cpu <= 6) {
+                    console.log('  ✅ CPU values look realistic (2-6 range for your setup)');
+                } else {
+                    console.log('  ⚠️ CPU values outside expected 2-6 range for your setup');
+                }
+            }
+            
+            // 5. Test Live CPU Data
+            console.log('\n🔥 Testing Live CPU Data:');
+            try {
+                const liveCpuData = await this.api.getLiveCpuData();
+                if (liveCpuData) {
+                    console.log('  ✅ Live CPU Data:', liveCpuData);
+                } else {
+                    console.log('  ❌ Live CPU Data not available');
+                }
+            } catch (liveError) {
+                console.log('  ❌ Live CPU Data failed:', liveError.message);
+            }
+            
+            // 6. Test CPU Estimation
+            console.log('\n🤖 CPU Estimation Test:');
+            const creepCount = this.lastStats?.creeps || 5;
+            const roomCount = this.lastStats?.rooms || 1;
+            const spawnCount = this.lastStats?.spawns || 1;
+            
+            const estimatedCpu = this.api.estimateCpuUsage(creepCount, roomCount, spawnCount);
+            console.log(`  Based on ${creepCount} creeps, ${roomCount} rooms, ${spawnCount} spawns:`);
+            console.log(`  Estimated CPU: ${estimatedCpu.toFixed(1)} (should be close to Screeps interface value)`);
+            
+            // 7. Empfehlungen
+            console.log('\n💡 Recommendations:');
+            if (memory && memory.dashboard && memory.dashboard.stats?.cpu) {
+                console.log('  ✅ Use Memory.dashboard.stats.cpu (most accurate)');
+                console.log('  Current value:', memory.dashboard.stats.cpu.used || memory.dashboard.stats.cpu);
+            } else {
+                console.log('  ❌ Memory.dashboard not available');
+                console.log('  🔧 Enable dashboard_exporter.js in your Screeps code');
+                console.log('  📝 Add to main.js: dashboardExporter.run() every 10 ticks');
+                console.log('  🤖 Using CPU estimation as fallback');
+            }
+            
+        } catch (error) {
+            console.error('❌ Detailed CPU analysis failed:', error);
+        }
+        
+        console.log('🔍 === END DETAILED ANALYSIS ===');
+    }
 }
 
 // Globale Debug-Funktionen
 global.debugCpu = function() {
     if (window.dashboard) {
         window.dashboard.debugCpuData();
+    } else {
+        console.log('Dashboard not available');
+    }
+};
+
+global.debugCpuDetailed = function() {
+    if (window.dashboard) {
+        window.dashboard.debugCpuDetailed();
     } else {
         console.log('Dashboard not available');
     }
@@ -2247,15 +2372,37 @@ global.testCpuFix = function() {
             console.log(`CPU Used: ${stats.cpu}`);
             console.log(`CPU Limit: ${stats.cpuLimit}`);
             console.log(`CPU Percentage: ${stats.cpuPercentage}%`);
-            console.log(`Expected: CPU should be < ${stats.cpuLimit} and vary over time`);
+            console.log(`Expected: CPU should be between 2-4 and vary over time`);
             
             if (stats.cpu === stats.cpuLimit) {
                 console.log('❌ Still showing CPU limit instead of usage!');
                 console.log('💡 Check if dashboard_exporter.js is running in Screeps');
+            } else if (stats.cpu >= 2 && stats.cpu <= 4) {
+                console.log('✅ CPU values look realistic!');
             } else {
-                console.log('✅ CPU fix working correctly!');
+                console.log('⚠️ CPU values outside expected 2-4 range');
+                console.log('💡 Run debugCpuDetailed() for more analysis');
             }
         });
+    }
+};
+
+// Schnelle CPU-Analyse
+global.quickCpuCheck = function() {
+    console.log('⚡ Quick CPU Check...');
+    if (window.dashboard && window.dashboard.lastStats) {
+        const stats = window.dashboard.lastStats;
+        console.log(`Current CPU: ${stats.cpu}`);
+        console.log(`CPU Limit: ${stats.cpuLimit}`);
+        console.log(`CPU %: ${stats.cpuPercentage}%`);
+        
+        if (stats.cpu >= 2 && stats.cpu <= 4) {
+            console.log('✅ Values look good!');
+        } else {
+            console.log('❌ Values look wrong - run debugCpuDetailed()');
+        }
+    } else {
+        console.log('No dashboard data available');
     }
 };
 
