@@ -480,24 +480,26 @@ window.saveConfig = function() {
         return;
     }
     
-    dashboard.api.setToken(token);
+    if (!window.dashboard) {
+        alert('Dashboard nicht initialisiert. Bitte lade die Seite neu.');
+        return;
+    }
+    
+    window.dashboard.api.setToken(token);
     
     if (serverUrl === 'custom' && customUrl) {
-        dashboard.api.setServerUrl(customUrl);
+        window.dashboard.api.setServerUrl(customUrl);
     } else {
-        dashboard.api.setServerUrl('https://screeps.com/api/');
+        window.dashboard.api.setServerUrl('https://screeps.com/api/');
     }
     
     window.closeConfigModal();
-    dashboard.startUpdating();
-    dashboard.addConsoleMessage('success', 'Konfiguration gespeichert');
+    window.dashboard.startUpdating();
+    window.dashboard.addConsoleMessage('success', 'Konfiguration gespeichert');
 };
 
-// Initialize dashboard
-let dashboard;
-document.addEventListener('DOMContentLoaded', () => {
-    dashboard = new ScreepsDashboard();
-});
+// Dashboard wird über window.dashboard in index.html initialisiert
+// Keine lokale dashboard Variable mehr nötig
 
 // Close modal when clicking outside
 document.addEventListener('click', (e) => {
