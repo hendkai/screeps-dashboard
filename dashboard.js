@@ -92,6 +92,16 @@ class ScreepsDashboard {
             return;
         }
         
+        // Check if canvases are already in use by checking for existing chart instances
+        if (Chart.getChart(energyCanvas)) {
+            console.log('Destroying existing chart on energyCanvas');
+            Chart.getChart(energyCanvas).destroy();
+        }
+        if (Chart.getChart(cpuCanvas)) {
+            console.log('Destroying existing chart on cpuCanvas');
+            Chart.getChart(cpuCanvas).destroy();
+        }
+        
         // Set maximum canvas dimensions to prevent size errors
         const maxWidth = Math.min(800, window.innerWidth - 100);
         const maxHeight = 400;
@@ -101,95 +111,102 @@ class ScreepsDashboard {
         cpuCanvas.style.maxWidth = maxWidth + 'px';
         cpuCanvas.style.maxHeight = maxHeight + 'px';
 
-        const energyCtx = energyCanvas.getContext('2d');
-        this.charts.energy = new Chart(energyCtx, {
-            type: 'line',
-            data: {
-                labels: this.chartData.energy.labels,
-                datasets: [{
-                    label: 'Energie',
-                    data: this.chartData.energy.data,
-                    borderColor: '#00ff88',
-                    backgroundColor: 'rgba(0, 255, 136, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
-                animation: {
-                    duration: 0
+        try {
+            const energyCtx = energyCanvas.getContext('2d');
+            this.charts.energy = new Chart(energyCtx, {
+                type: 'line',
+                data: {
+                    labels: this.chartData.energy.labels,
+                    datasets: [{
+                        label: 'Energie',
+                        data: this.chartData.energy.data,
+                        borderColor: '#00ff88',
+                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
                 },
-                plugins: {
-                    legend: {
-                        labels: { color: '#00ff88' }
-                    }
-                },
-                scales: {
-                    x: {
-                        ticks: { 
-                            color: '#00ff88',
-                            maxTicksLimit: 10
-                        },
-                        grid: { color: '#333333' }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+                    animation: {
+                        duration: 0
                     },
-                    y: {
-                        ticks: { 
-                            color: '#00ff88',
-                            maxTicksLimit: 8
+                    plugins: {
+                        legend: {
+                            labels: { color: '#00ff88' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { 
+                                color: '#00ff88',
+                                maxTicksLimit: 10
+                            },
+                            grid: { color: '#333333' }
                         },
-                        grid: { color: '#333333' }
+                        y: {
+                            ticks: { 
+                                color: '#00ff88',
+                                maxTicksLimit: 8
+                            },
+                            grid: { color: '#333333' }
+                        }
                     }
                 }
-            }
-        });
+            });
 
-        const cpuCtx = cpuCanvas.getContext('2d');
-        this.charts.cpu = new Chart(cpuCtx, {
-            type: 'line',
-            data: {
-                labels: this.chartData.cpu.labels,
-                datasets: [{
-                    label: 'CPU Verbrauch',
-                    data: this.chartData.cpu.data,
-                    borderColor: '#4ecdc4',
-                    backgroundColor: 'rgba(78, 205, 196, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
-                animation: {
-                    duration: 0
+            const cpuCtx = cpuCanvas.getContext('2d');
+            this.charts.cpu = new Chart(cpuCtx, {
+                type: 'line',
+                data: {
+                    labels: this.chartData.cpu.labels,
+                    datasets: [{
+                        label: 'CPU Verbrauch',
+                        data: this.chartData.cpu.data,
+                        borderColor: '#4ecdc4',
+                        backgroundColor: 'rgba(78, 205, 196, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
                 },
-                plugins: {
-                    legend: {
-                        labels: { color: '#00ff88' }
-                    }
-                },
-                scales: {
-                    x: {
-                        ticks: { 
-                            color: '#00ff88',
-                            maxTicksLimit: 10
-                        },
-                        grid: { color: '#333333' }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+                    animation: {
+                        duration: 0
                     },
-                    y: {
-                        ticks: { 
-                            color: '#00ff88',
-                            maxTicksLimit: 8
+                    plugins: {
+                        legend: {
+                            labels: { color: '#00ff88' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { 
+                                color: '#00ff88',
+                                maxTicksLimit: 10
+                            },
+                            grid: { color: '#333333' }
                         },
-                        grid: { color: '#333333' }
+                        y: {
+                            ticks: { 
+                                color: '#00ff88',
+                                maxTicksLimit: 8
+                            },
+                            grid: { color: '#333333' }
+                        }
                     }
                 }
-            }
-        });
+            });
+            
+            console.log('Charts initialized successfully');
+            
+        } catch (error) {
+            console.error('Failed to initialize charts:', error);
+        }
     }
 
     updateConnectionStatus(status) {

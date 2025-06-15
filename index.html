@@ -428,6 +428,7 @@
     <script>
         // Global dashboard variable
         let dashboard = null;
+        let isInitialized = false;
 
         // Configuration modal functions
         function openConfigModal() {
@@ -440,9 +441,17 @@
 
         // Initialize dashboard when page loads
         document.addEventListener('DOMContentLoaded', () => {
+            // Prevent multiple initializations
+            if (isInitialized) {
+                console.warn('Dashboard already initialized');
+                return;
+            }
+
             try {
+                console.log('Initializing dashboard...');
                 dashboard = new ScreepsDashboard();
                 window.dashboard = dashboard; // Also make it available on window for debugging
+                isInitialized = true;
                 console.log('Dashboard initialized successfully');
                 
                 // Setup form event listener AFTER dashboard is initialized
@@ -450,40 +459,70 @@
                 
             } catch (error) {
                 console.error('Failed to initialize dashboard:', error);
+                isInitialized = false;
             }
         });
 
         function setupFormHandlers() {
-            // Handle configuration form submission
-            document.getElementById('configForm').addEventListener('submit', (e) => {
-                e.preventDefault();
+            console.log('Setting up form handlers...');
+            
+            // Remove any existing event listeners first
+            const configForm = document.getElementById('configForm');
+            const serverUrl = document.getElementById('serverUrl');
+            
+            if (configForm) {
+                // Clone form to remove all event listeners
+                const newConfigForm = configForm.cloneNode(true);
+                configForm.parentNode.replaceChild(newConfigForm, configForm);
                 
-                if (!dashboard) {
-                    alert('Dashboard nicht initialisiert. Bitte lade die Seite neu.');
-                    return;
-                }
+                // Add the submit event listener to the new form
+                newConfigForm.addEventListener('submit', handleFormSubmit);
+            }
+            
+            if (serverUrl) {
+                // Clone server URL select to remove all event listeners
+                const newServerUrl = serverUrl.cloneNode(true);
+                serverUrl.parentNode.replaceChild(newServerUrl, serverUrl);
                 
-                const token = document.getElementById('apiToken').value;
-                const serverUrl = document.getElementById('serverUrl').value;
-                const customUrl = document.getElementById('customUrl').value;
-                
-                // Use the dashboard's updateConfiguration method
-                const success = dashboard.updateConfiguration(token, serverUrl, customUrl);
-                
-                if (success) {
-                    closeConfigModal();
-                }
-            });
+                // Add the change event listener to the new select
+                newServerUrl.addEventListener('change', handleServerUrlChange);
+            }
+            
+            console.log('Form handlers setup complete');
+        }
 
-            // Handle server URL changes
-            document.getElementById('serverUrl').addEventListener('change', (e) => {
-                const customGroup = document.getElementById('customUrlGroup');
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            console.log('Form submitted, dashboard available:', !!dashboard);
+            
+            if (!dashboard) {
+                alert('Dashboard nicht initialisiert. Bitte lade die Seite neu.');
+                return;
+            }
+            
+            const token = document.getElementById('apiToken').value;
+            const serverUrl = document.getElementById('serverUrl').value;
+            const customUrl = document.getElementById('customUrl').value;
+            
+            console.log('Updating configuration...');
+            
+            // Use the dashboard's updateConfiguration method
+            const success = dashboard.updateConfiguration(token, serverUrl, customUrl);
+            
+            if (success) {
+                closeConfigModal();
+            }
+        }
+
+        function handleServerUrlChange(e) {
+            const customGroup = document.getElementById('customUrlGroup');
+            if (customGroup) {
                 if (e.target.value === 'custom') {
                     customGroup.style.display = 'block';
                 } else {
                     customGroup.style.display = 'none';
                 }
-            });
+            }
         }
     </script>
 </body>
