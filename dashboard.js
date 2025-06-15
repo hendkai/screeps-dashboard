@@ -65,30 +65,17 @@ class ScreepsDashboard {
             if (customUrlElement) customUrlElement.value = serverUrl;
             if (customUrlGroup) customUrlGroup.style.display = 'block';
         }
-        
-        // Update mode buttons based on current proxy setting
-        this.updateModeButtons();
-    }
-
-    updateModeButtons() {
-        const directBtn = document.getElementById('directModeBtn');
-        const proxyBtn = document.getElementById('proxyModeBtn');
-        
-        if (directBtn && proxyBtn) {
-            if (this.api.useProxy) {
-                proxyBtn.classList.add('active');
-                directBtn.classList.remove('active');
-            } else {
-                directBtn.classList.add('active');
-                proxyBtn.classList.remove('active');
-            }
-        }
     }
 
     initCharts() {
         // Get canvas elements and set maximum dimensions
         const energyCanvas = document.getElementById('energyChart');
         const cpuCanvas = document.getElementById('cpuChart');
+        
+        if (!energyCanvas || !cpuCanvas) {
+            console.warn('Chart canvases not found');
+            return;
+        }
         
         // Set maximum canvas dimensions to prevent size errors
         const maxWidth = Math.min(800, window.innerWidth - 100);
@@ -116,9 +103,9 @@ class ScreepsDashboard {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2), // Limit pixel ratio
+                devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
                 animation: {
-                    duration: 0 // Disable animations to reduce canvas operations
+                    duration: 0
                 },
                 plugins: {
                     legend: {
@@ -129,14 +116,14 @@ class ScreepsDashboard {
                     x: {
                         ticks: { 
                             color: '#00ff88',
-                            maxTicksLimit: 10 // Limit number of ticks
+                            maxTicksLimit: 10
                         },
                         grid: { color: '#333333' }
                     },
                     y: {
                         ticks: { 
                             color: '#00ff88',
-                            maxTicksLimit: 8 // Limit number of ticks
+                            maxTicksLimit: 8
                         },
                         grid: { color: '#333333' }
                     }
@@ -161,9 +148,9 @@ class ScreepsDashboard {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2), // Limit pixel ratio
+                devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
                 animation: {
-                    duration: 0 // Disable animations to reduce canvas operations
+                    duration: 0
                 },
                 plugins: {
                     legend: {
@@ -174,14 +161,14 @@ class ScreepsDashboard {
                     x: {
                         ticks: { 
                             color: '#00ff88',
-                            maxTicksLimit: 10 // Limit number of ticks
+                            maxTicksLimit: 10
                         },
                         grid: { color: '#333333' }
                     },
                     y: {
                         ticks: { 
                             color: '#00ff88',
-                            maxTicksLimit: 8 // Limit number of ticks
+                            maxTicksLimit: 8
                         },
                         grid: { color: '#333333' }
                     }
@@ -192,6 +179,8 @@ class ScreepsDashboard {
 
     updateConnectionStatus(status) {
         const statusElement = document.getElementById('connectionStatus');
+        if (!statusElement) return;
+        
         const icon = statusElement.querySelector('i');
         const text = statusElement.querySelector('span');
         
@@ -199,16 +188,16 @@ class ScreepsDashboard {
         
         switch (status) {
             case 'connected':
-                icon.className = 'fas fa-circle';
-                text.textContent = 'Verbunden';
+                if (icon) icon.className = 'fas fa-circle';
+                if (text) text.textContent = 'Verbunden';
                 break;
             case 'disconnected':
-                icon.className = 'fas fa-circle';
-                text.textContent = 'Getrennt';
+                if (icon) icon.className = 'fas fa-circle';
+                if (text) text.textContent = 'Getrennt';
                 break;
             case 'connecting':
-                icon.className = 'fas fa-circle';
-                text.textContent = 'Verbindung wird hergestellt...';
+                if (icon) icon.className = 'fas fa-circle';
+                if (text) text.textContent = 'Verbindung wird hergestellt...';
                 break;
         }
     }
@@ -219,13 +208,7 @@ class ScreepsDashboard {
             
             const stats = await this.api.getGameStats();
             
-            document.getElementById('energyValue').textContent = 
-                `${stats.energy}/${stats.energyCapacity}`;
-            document.getElementById('creepCount').textContent = stats.creeps;
-            document.getElementById('cpuUsage').textContent = 
-                `${stats.cpu.toFixed(1)}/${stats.cpuLimit}`;
-            document.getElementById('roomCount').textContent = stats.rooms;
-            
+            this.updateStats(stats);
             this.updateCharts(stats);
             this.updateCreepsDisplay(stats.roomsData);
             this.updateRoomsDisplay(stats.roomsData);
@@ -240,7 +223,31 @@ class ScreepsDashboard {
         }
     }
 
+    updateStats(stats) {
+        const elements = {
+            energyValue: document.getElementById('energyValue'),
+            creepCount: document.getElementById('creepCount'),
+            cpuUsage: document.getElementById('cpuUsage'),
+            roomCount: document.getElementById('roomCount')
+        };
+
+        if (elements.energyValue) {
+            elements.energyValue.textContent = `${stats.energy}/${stats.energyCapacity}`;
+        }
+        if (elements.creepCount) {
+            elements.creepCount.textContent = stats.creeps;
+        }
+        if (elements.cpuUsage) {
+            elements.cpuUsage.textContent = `${stats.cpu.toFixed(1)}/${stats.cpuLimit}`;
+        }
+        if (elements.roomCount) {
+            elements.roomCount.textContent = stats.rooms;
+        }
+    }
+
     updateCharts(stats) {
+        if (!this.charts.energy || !this.charts.cpu) return;
+        
         const now = new Date().toLocaleTimeString();
         
         this.chartData.energy.labels.push(now);
@@ -261,132 +268,124 @@ class ScreepsDashboard {
     }
 
     updateCreepsDisplay(roomsData) {
-        const creepsGrid = document.getElementById('creepsGrid');
-        creepsGrid.innerHTML = '';
+        const creepsList = document.getElementById('creepsList');
+        if (!creepsList || !roomsData) return;
         
+        creepsList.innerHTML = '';
+        
+        let totalCreeps = 0;
         roomsData.forEach(room => {
             if (room.data && room.data.objects) {
-                const creeps = room.data.objects.filter(obj => obj.type === 'creep');
-                
+                const creeps = room.data.objects.filter(obj => obj.type === "creep");
                 creeps.forEach(creep => {
-                    const creepCard = document.createElement('div');
-                    creepCard.className = 'creep-card';
-                    
-                    const role = creep.name.split('_')[0] || 'unknown';
-                    const energy = creep.store ? creep.store.energy || 0 : 0;
-                    const energyCapacity = creep.storeCapacity || 0;
-                    const hits = creep.hits || 0;
-                    const hitsMax = creep.hitsMax || 0;
-                    
-                    creepCard.innerHTML = `
-                        <div class="creep-header">
-                            <div class="creep-name">${creep.name}</div>
-                            <div class="creep-role">${role}</div>
-                        </div>
-                        <div class="creep-stats">
-                            <div class="stat-item">
-                                <span>Energie</span>
-                                <span>${energy}/${energyCapacity}</span>
-                            </div>
-                            <div class="stat-item">
-                                <span>Leben</span>
-                                <span>${hits}/${hitsMax}</span>
-                            </div>
-                            <div class="stat-item">
-                                <span>Raum</span>
-                                <span>${room.name}</span>
-                            </div>
-                        </div>
+                    const li = document.createElement('li');
+                    li.className = 'data-item';
+                    li.innerHTML = `
+                        <span>${creep.name}</span>
+                        <span>${room.name}</span>
                     `;
-                    
-                    creepsGrid.appendChild(creepCard);
+                    creepsList.appendChild(li);
+                    totalCreeps++;
                 });
             }
         });
+        
+        if (totalCreeps === 0) {
+            const li = document.createElement('li');
+            li.className = 'data-item';
+            li.textContent = 'Keine Creeps gefunden';
+            creepsList.appendChild(li);
+        }
     }
 
     updateRoomsDisplay(roomsData) {
-        const roomsGrid = document.getElementById('roomsGrid');
-        roomsGrid.innerHTML = '';
+        const roomsList = document.getElementById('roomsList');
+        if (!roomsList || !roomsData) return;
+        
+        roomsList.innerHTML = '';
+        
+        if (roomsData.length === 0) {
+            const li = document.createElement('li');
+            li.className = 'data-item';
+            li.textContent = 'Keine Räume gefunden';
+            roomsList.appendChild(li);
+            return;
+        }
         
         roomsData.forEach(room => {
+            const li = document.createElement('li');
+            li.className = 'data-item';
+            
+            let energyInfo = '-';
             if (room.data && room.data.objects) {
-                const roomCard = document.createElement('div');
-                roomCard.className = 'room-card';
+                const spawns = room.data.objects.filter(obj => obj.type === "spawn");
+                const extensions = room.data.objects.filter(obj => obj.type === "extension");
                 
-                const controller = room.data.objects.find(obj => obj.type === 'controller');
-                const level = controller ? controller.level || 0 : 0;
+                let energy = 0;
+                let capacity = 0;
                 
-                const spawns = room.data.objects.filter(obj => obj.type === 'spawn').length;
-                const extensions = room.data.objects.filter(obj => obj.type === 'extension').length;
-                const towers = room.data.objects.filter(obj => obj.type === 'tower').length;
+                spawns.forEach(spawn => {
+                    if (spawn.store) {
+                        energy += spawn.store.energy || 0;
+                        capacity += spawn.storeCapacity || 300;
+                    }
+                });
                 
-                roomCard.innerHTML = `
-                    <div class="room-header">
-                        <div class="room-name">${room.name}</div>
-                        <div class="room-level">RCL ${level}</div>
-                    </div>
-                    <div class="room-stats">
-                        <div class="stat-item">
-                            <span>Spawns</span>
-                            <span>${spawns}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span>Extensions</span>
-                            <span>${extensions}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span>Towers</span>
-                            <span>${towers}</span>
-                        </div>
-                    </div>
-                `;
+                extensions.forEach(ext => {
+                    if (ext.store) {
+                        energy += ext.store.energy || 0;
+                        capacity += ext.storeCapacity || 50;
+                    }
+                });
                 
-                roomsGrid.appendChild(roomCard);
+                energyInfo = `${energy}/${capacity}`;
             }
+            
+            li.innerHTML = `
+                <span>${room.name}</span>
+                <span>${energyInfo}</span>
+            `;
+            roomsList.appendChild(li);
         });
     }
 
     async updateConsole() {
         try {
             const consoleData = await this.api.getConsole();
-            
-            if (consoleData && consoleData.messages) {
-                consoleData.messages.forEach(msg => {
-                    this.addConsoleMessage('message', msg);
-                });
-            }
+            // Console data display could be implemented here
         } catch (error) {
-            console.warn('Failed to update console:', error);
+            // Silently fail for console updates
         }
     }
 
     addConsoleMessage(type, message) {
         const consoleOutput = document.getElementById('consoleOutput');
-        const consoleLine = document.createElement('div');
-        consoleLine.className = 'console-line';
+        if (!consoleOutput) {
+            console.warn('Console output element not found');
+            return;
+        }
         
-        const timestamp = new Date().toLocaleTimeString();
-        consoleLine.innerHTML = `
-            <span class="timestamp">[${timestamp}]</span>
-            <span class="message ${type}">${message}</span>
-        `;
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `console-message ${type}`;
+        messageDiv.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
         
-        consoleOutput.appendChild(consoleLine);
+        consoleOutput.appendChild(messageDiv);
         consoleOutput.scrollTop = consoleOutput.scrollHeight;
         
-        const lines = consoleOutput.querySelectorAll('.console-line');
-        if (lines.length > 100) {
-            lines[0].remove();
+        // Limit console messages
+        const messages = consoleOutput.children;
+        if (messages.length > 50) {
+            consoleOutput.removeChild(messages[0]);
         }
     }
 
     startUpdating() {
         if (this.intervalId) {
-            clearInterval(this.intervalId);
+            this.stopUpdating();
         }
         
-        this.updateDashboard();
+        this.addConsoleMessage('info', 'Dashboard Updates gestartet');
+        this.updateDashboard(); // Initial update
         
         this.intervalId = setInterval(() => {
             this.updateDashboard();
@@ -397,8 +396,8 @@ class ScreepsDashboard {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
+            this.addConsoleMessage('info', 'Dashboard Updates gestoppt');
         }
-        this.updateConnectionStatus('disconnected');
     }
 }
 

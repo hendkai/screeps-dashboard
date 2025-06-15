@@ -294,17 +294,9 @@
             margin-left: 20px;
         }
 
-        .mode-toggle {
+        .config-controls {
             text-align: center;
             margin-bottom: 20px;
-        }
-
-        .mode-toggle button {
-            margin: 0 5px;
-        }
-
-        .mode-toggle button.active {
-            background: var(--screeps-blue);
         }
     </style>
 </head>
@@ -321,23 +313,17 @@
 
         <!-- CORS Warning -->
         <div class="cors-warning">
-            <div class="title"><i class="fas fa-exclamation-triangle"></i> GitHub Pages Hinweis</div>
-            <p>Dieses Dashboard versucht direkt mit der Screeps API zu kommunizieren. Bei CORS-Problemen:</p>
+            <div class="title"><i class="fas fa-exclamation-triangle"></i> CORS Information</div>
+            <p>Dieses Dashboard kommuniziert direkt mit der Screeps API. Bei CORS-Problemen:</p>
             <ul>
+                <li>Installiere eine CORS-Browser-Extension (Chrome: "CORS Unblock", Firefox: "CORS Everywhere")</li>
+                <li>Oder verwende einen anderen Browser (manche blockieren weniger)</li>
                 <li>Stelle sicher, dass dein API-Token korrekt ist</li>
-                <li>Einige Browser blockieren CORS-Anfragen - versuche einen anderen Browser</li>
-                <li>Für lokale Entwicklung kannst du den Proxy-Modus aktivieren</li>
             </ul>
         </div>
 
-        <!-- Mode Toggle -->
-        <div class="mode-toggle">
-            <button id="directModeBtn" class="btn active" onclick="toggleMode('direct')">
-                <i class="fas fa-globe"></i> Direkter Modus
-            </button>
-            <button id="proxyModeBtn" class="btn" onclick="toggleMode('proxy')">
-                <i class="fas fa-server"></i> Proxy-Modus (Lokal)
-            </button>
+        <!-- Configuration Controls -->
+        <div class="config-controls">
             <button class="btn" onclick="openConfigModal()">
                 <i class="fas fa-cog"></i> Konfiguration
             </button>
@@ -402,7 +388,7 @@
         <!-- Console Section -->
         <div class="data-card">
             <h3><i class="fas fa-terminal"></i> Konsole</h3>
-            <div id="console" class="console">
+            <div id="consoleOutput" class="console">
                 <div class="console-message info">Dashboard initialisiert...</div>
             </div>
         </div>
@@ -440,34 +426,10 @@
     <script src="screeps-api.js"></script>
     <script src="dashboard.js"></script>
     <script>
-        let dashboard;
-
         // Initialize dashboard when page loads
         document.addEventListener('DOMContentLoaded', () => {
-            dashboard = new ScreepsDashboard();
+            window.dashboard = new ScreepsDashboard();
         });
-
-        // Mode toggle functions
-        function toggleMode(mode) {
-            const directBtn = document.getElementById('directModeBtn');
-            const proxyBtn = document.getElementById('proxyModeBtn');
-            
-            if (mode === 'direct') {
-                dashboard.api.enableProxyMode(false);
-                directBtn.classList.add('active');
-                proxyBtn.classList.remove('active');
-                dashboard.addConsoleMessage('info', 'Direkter Modus aktiviert - Kommunikation direkt mit Screeps API');
-            } else {
-                dashboard.api.enableProxyMode(true);
-                proxyBtn.classList.add('active');
-                directBtn.classList.remove('active');
-                dashboard.addConsoleMessage('info', 'Proxy-Modus aktiviert - Starte lokalen Proxy mit: python3 proxy-server.py');
-            }
-            
-            // Restart dashboard updates with new mode
-            dashboard.stopUpdating();
-            setTimeout(() => dashboard.startUpdating(), 1000);
-        }
 
         // Configuration modal functions
         function openConfigModal() {
@@ -491,20 +453,20 @@
                 return;
             }
             
-            dashboard.api.setToken(token);
+            window.dashboard.api.setToken(token);
             
             if (serverUrl === 'custom' && customUrl) {
-                dashboard.api.setServerUrl(customUrl);
+                window.dashboard.api.setServerUrl(customUrl);
             } else if (serverUrl !== 'custom') {
-                dashboard.api.setServerUrl(serverUrl);
+                window.dashboard.api.setServerUrl(serverUrl);
             }
             
             closeConfigModal();
-            dashboard.addConsoleMessage('success', 'Konfiguration gespeichert');
+            window.dashboard.addConsoleMessage('success', 'Konfiguration gespeichert');
             
             // Restart dashboard
-            dashboard.stopUpdating();
-            setTimeout(() => dashboard.startUpdating(), 1000);
+            window.dashboard.stopUpdating();
+            setTimeout(() => window.dashboard.startUpdating(), 1000);
         });
     </script>
 </body>

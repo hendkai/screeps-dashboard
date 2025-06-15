@@ -1,11 +1,9 @@
 class ScreepsAPI {
     constructor() {
-        // Use direct connection to Screeps API by default (for GitHub Pages hosting)
+        // Direct connection to Screeps API (GitHub Pages compatible)
         this.baseUrl = "https://screeps.com/api/";
-        this.fallbackUrl = "https://screeps.com/api/";
         this.token = null;
         this.isConnected = false;
-        this.useProxy = false; // Changed to false by default
     }
 
     setToken(token) {
@@ -21,50 +19,16 @@ class ScreepsAPI {
     }
 
     setServerUrl(url) {
-        if (url.includes('localhost') || url.includes('127.0.0.1')) {
-            // Custom local server
-            this.baseUrl = url.endsWith("/") ? url : url + "/";
-            this.useProxy = false;
-        } else if (url === 'https://screeps.com/api/') {
-            // Official server - check if user prefers proxy
-            const useProxy = localStorage.getItem("screeps_use_proxy") === 'true';
-            if (useProxy) {
-                this.baseUrl = "http://localhost:8081/api/";
-                this.useProxy = true;
-            } else {
-                this.baseUrl = "https://screeps.com/api/";
-                this.useProxy = false;
-            }
-        } else {
-            // Other server - try direct connection
-            this.baseUrl = url.endsWith("/") ? url : url + "/";
-            this.useProxy = false;
-        }
+        this.baseUrl = url.endsWith("/") ? url : url + "/";
         localStorage.setItem("screeps_server", this.baseUrl);
-        localStorage.setItem("screeps_use_proxy", this.useProxy.toString());
     }
 
     getServerUrl() {
         const stored = localStorage.getItem("screeps_server");
-        const useProxyStored = localStorage.getItem("screeps_use_proxy");
-        
         if (stored) {
             this.baseUrl = stored;
-            this.useProxy = useProxyStored === 'true';
         }
         return this.baseUrl;
-    }
-
-    enableProxyMode(enable = true) {
-        localStorage.setItem("screeps_use_proxy", enable.toString());
-        if (enable) {
-            this.baseUrl = "http://localhost:8081/api/";
-            this.useProxy = true;
-        } else {
-            this.baseUrl = "https://screeps.com/api/";
-            this.useProxy = false;
-        }
-        localStorage.setItem("screeps_server", this.baseUrl);
     }
 
     async request(endpoint, options = {}) {
@@ -103,11 +67,7 @@ class ScreepsAPI {
             
             // Handle CORS errors with helpful message
             if (error.message.includes('NetworkError') || error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
-                if (this.useProxy) {
-                    throw new Error('Proxy-Server nicht erreichbar. Starte den Proxy-Server mit: python3 proxy-server.py oder aktiviere den direkten Modus.');
-                } else {
-                    throw new Error('CORS-Problem: Die Screeps API blockiert direkte Anfragen. Dies kann bei einigen Browsern auftreten. Versuche den Proxy-Modus oder nutze ein Browser-Plugin zur CORS-Deaktivierung.');
-                }
+                throw new Error('CORS-Problem: Direkte API-Anfragen blockiert. Lösung: Installiere eine CORS-Browser-Extension (z.B. "CORS Unblock" für Chrome oder "CORS Everywhere" für Firefox) oder verwende einen anderen Browser.');
             }
             
             throw error;
@@ -215,7 +175,7 @@ class ScreepsAPI {
                 roomsData: rooms
             };
         } catch (error) {
-            console.error("Failed to get game stats:", error);
+            console.error('Failed to get game stats:', error);
             throw error;
         }
     }
