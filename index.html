@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screeps Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --screeps-green: #00ff88;
+            --screeps-blue: #4ecdc4;
+            --dark-bg: #1a1a1a;
+            --card-bg: #2a2a2a;
+            --border-color: #3a3a3a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--dark-bg);
+            color: var(--screeps-green);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, var(--screeps-green), var(--screeps-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .connection-status.connected {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--screeps-green);
+        }
+
+        .connection-status.disconnected {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff4444;
+        }
+
+        .connection-status.connecting {
+            background: rgba(255, 165, 0, 0.2);
+            color: #ffa500;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--screeps-green);
+        }
+
+        .stat-card .icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: var(--screeps-blue);
+        }
+
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .charts-section {
+            margin-bottom: 30px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .chart-container {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            height: 300px;
+        }
+
+        .chart-container h3 {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .data-section {
+            margin-bottom: 30px;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+        }
+
+        .data-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .data-card h3 {
+            margin-bottom: 15px;
+            color: var(--screeps-green);
+        }
+
+        .data-list {
+            list-style: none;
+        }
+
+        .data-item {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .data-item:last-child {
+            border-bottom: none;
+        }
+
+        .console {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .console-message {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        .console-message.info {
+            color: var(--screeps-blue);
+        }
+
+        .console-message.error {
+            color: #ff4444;
+            background: rgba(255, 68, 68, 0.1);
+        }
+
+        .console-message.success {
+            color: var(--screeps-green);
+        }
+
+        .btn {
+            background: var(--screeps-green);
+            color: var(--dark-bg);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: var(--screeps-blue);
+            transform: translateY(-1px);
+        }
+
+        .config-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+        }
+
+        .config-modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .config-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            background: var(--dark-bg);
+            color: var(--screeps-green);
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--screeps-green);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .cors-warning {
+            background: rgba(255, 165, 0, 0.2);
+            border: 1px solid #ffa500;
+            color: #ffa500;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .cors-warning .title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .cors-warning ul {
+            margin-left: 20px;
+        }
+
+        .mode-toggle {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .mode-toggle button {
+            margin: 0 5px;
+        }
+
+        .mode-toggle button.active {
+            background: var(--screeps-blue);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-robot"></i> Screeps Dashboard</h1>
+            <div id="connectionStatus" class="connection-status disconnected">
+                <i class="fas fa-circle"></i>
+                <span>Getrennt</span>
+            </div>
+        </div>
+
+        <!-- CORS Warning -->
+        <div class="cors-warning">
+            <div class="title"><i class="fas fa-exclamation-triangle"></i> GitHub Pages Hinweis</div>
+            <p>Dieses Dashboard versucht direkt mit der Screeps API zu kommunizieren. Bei CORS-Problemen:</p>
+            <ul>
+                <li>Stelle sicher, dass dein API-Token korrekt ist</li>
+                <li>Einige Browser blockieren CORS-Anfragen - versuche einen anderen Browser</li>
+                <li>Für lokale Entwicklung kannst du den Proxy-Modus aktivieren</li>
+            </ul>
+        </div>
+
+        <!-- Mode Toggle -->
+        <div class="mode-toggle">
+            <button id="directModeBtn" class="btn active" onclick="toggleMode('direct')">
+                <i class="fas fa-globe"></i> Direkter Modus
+            </button>
+            <button id="proxyModeBtn" class="btn" onclick="toggleMode('proxy')">
+                <i class="fas fa-server"></i> Proxy-Modus (Lokal)
+            </button>
+            <button class="btn" onclick="openConfigModal()">
+                <i class="fas fa-cog"></i> Konfiguration
+            </button>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="icon"><i class="fas fa-bolt"></i></div>
+                <div class="value" id="energyValue">-/-</div>
+                <div class="label">Energie</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="fas fa-users"></i></div>
+                <div class="value" id="creepCount">-</div>
+                <div class="label">Creeps</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="fas fa-microchip"></i></div>
+                <div class="value" id="cpuUsage">-/-</div>
+                <div class="label">CPU Verbrauch</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="fas fa-home"></i></div>
+                <div class="value" id="roomCount">-</div>
+                <div class="label">Räume</div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3><i class="fas fa-chart-line"></i> Energie Verlauf</h3>
+                    <canvas id="energyChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3><i class="fas fa-chart-area"></i> CPU Verlauf</h3>
+                    <canvas id="cpuChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Section -->
+        <div class="data-section">
+            <div class="data-grid">
+                <div class="data-card">
+                    <h3><i class="fas fa-users"></i> Creeps</h3>
+                    <ul id="creepsList" class="data-list">
+                        <li class="data-item">Keine Daten verfügbar</li>
+                    </ul>
+                </div>
+                <div class="data-card">
+                    <h3><i class="fas fa-map"></i> Räume</h3>
+                    <ul id="roomsList" class="data-list">
+                        <li class="data-item">Keine Daten verfügbar</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Console Section -->
+        <div class="data-card">
+            <h3><i class="fas fa-terminal"></i> Konsole</h3>
+            <div id="console" class="console">
+                <div class="console-message info">Dashboard initialisiert...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Modal -->
+    <div id="configModal" class="config-modal">
+        <div class="config-content">
+            <h2><i class="fas fa-cog"></i> Dashboard Konfiguration</h2>
+            <form id="configForm">
+                <div class="form-group">
+                    <label for="apiToken">API Token:</label>
+                    <input type="password" id="apiToken" placeholder="Dein Screeps API Token">
+                </div>
+                <div class="form-group">
+                    <label for="serverUrl">Server:</label>
+                    <select id="serverUrl">
+                        <option value="https://screeps.com/api/">Offizieller Server</option>
+                        <option value="custom">Benutzerdefiniert</option>
+                    </select>
+                </div>
+                <div class="form-group" id="customUrlGroup" style="display: none;">
+                    <label for="customUrl">Benutzerdefinierte URL:</label>
+                    <input type="url" id="customUrl" placeholder="https://...">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="closeConfigModal()">Abbrechen</button>
+                    <button type="submit" class="btn">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="screeps-api.js"></script>
+    <script src="dashboard.js"></script>
+    <script>
+        let dashboard;
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            dashboard = new ScreepsDashboard();
+        });
+
+        // Mode toggle functions
+        function toggleMode(mode) {
+            const directBtn = document.getElementById('directModeBtn');
+            const proxyBtn = document.getElementById('proxyModeBtn');
+            
+            if (mode === 'direct') {
+                dashboard.api.enableProxyMode(false);
+                directBtn.classList.add('active');
+                proxyBtn.classList.remove('active');
+                dashboard.addConsoleMessage('info', 'Direkter Modus aktiviert - Kommunikation direkt mit Screeps API');
+            } else {
+                dashboard.api.enableProxyMode(true);
+                proxyBtn.classList.add('active');
+                directBtn.classList.remove('active');
+                dashboard.addConsoleMessage('info', 'Proxy-Modus aktiviert - Starte lokalen Proxy mit: python3 proxy-server.py');
+            }
+            
+            // Restart dashboard updates with new mode
+            dashboard.stopUpdating();
+            setTimeout(() => dashboard.startUpdating(), 1000);
+        }
+
+        // Configuration modal functions
+        function openConfigModal() {
+            document.getElementById('configModal').classList.add('show');
+        }
+
+        function closeConfigModal() {
+            document.getElementById('configModal').classList.remove('show');
+        }
+
+        // Handle configuration form submission
+        document.getElementById('configForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const token = document.getElementById('apiToken').value;
+            const serverUrl = document.getElementById('serverUrl').value;
+            const customUrl = document.getElementById('customUrl').value;
+            
+            if (!token) {
+                alert('Bitte gib deinen API Token ein');
+                return;
+            }
+            
+            dashboard.api.setToken(token);
+            
+            if (serverUrl === 'custom' && customUrl) {
+                dashboard.api.setServerUrl(customUrl);
+            } else if (serverUrl !== 'custom') {
+                dashboard.api.setServerUrl(serverUrl);
+            }
+            
+            closeConfigModal();
+            dashboard.addConsoleMessage('success', 'Konfiguration gespeichert');
+            
+            // Restart dashboard
+            dashboard.stopUpdating();
+            setTimeout(() => dashboard.startUpdating(), 1000);
+        });
+    </script>
+</body>
+</html> 
