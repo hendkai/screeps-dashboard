@@ -545,7 +545,7 @@ class ScreepsDashboard {
         if (totalCreeps === 0) {
             const li = document.createElement('li');
             li.className = 'data-item';
-                                li.textContent = 'No creeps found';
+            li.textContent = 'No creeps found';
             creepsList.appendChild(li);
         }
     }
@@ -610,7 +610,7 @@ class ScreepsDashboard {
         if (roomControlLevels.length === 0) {
             const li = document.createElement('li');
             li.className = 'data-item';
-            li.textContent = 'Keine Controller gefunden';
+            li.textContent = 'No controllers found';
             controllersList.appendChild(li);
             return;
         }
@@ -628,7 +628,7 @@ class ScreepsDashboard {
                 statusInfo += ` | Downgrade in ${hoursToDowngrade}h`;
             }
             if (room.upgradeBlocked > 0) {
-                statusInfo += ` | Upgrade blockiert für ${room.upgradeBlocked} Ticks`;
+                statusInfo += ` | Upgrade blocked for ${room.upgradeBlocked} Ticks`;
             }
             
             li.innerHTML = `
@@ -646,16 +646,16 @@ class ScreepsDashboard {
         productionStats.innerHTML = '';
         
         const statsData = [
-            { label: 'Creeps produziert', value: stats.creepsProduced || 0, icon: 'fas fa-users' },
-            { label: 'Energie geerntet', value: (stats.energyHarvested || 0).toLocaleString(), icon: 'fas fa-bolt' },
-            { label: 'Energie für Bau', value: (stats.energyConstruction || 0).toLocaleString(), icon: 'fas fa-hammer' },
-            { label: 'Energie für Kontrolle', value: (stats.energyControl || 0).toLocaleString(), icon: 'fas fa-crown' },
-            { label: 'Energie für Creeps', value: (stats.energyCreeps || 0).toLocaleString(), icon: 'fas fa-robot' },
-            { label: 'Energie Effizienz', value: `${stats.energyPercentage || 0}%`, icon: 'fas fa-percentage' },
-            { label: 'CPU Effizienz', value: `${stats.cpuPercentage || 0}%`, icon: 'fas fa-microchip' },
+            { label: 'Creeps produced', value: stats.creepsProduced || 0, icon: 'fas fa-users' },
+            { label: 'Energy harvested', value: (stats.energyHarvested || 0).toLocaleString(), icon: 'fas fa-bolt' },
+            { label: 'Energy for construction', value: (stats.energyConstruction || 0).toLocaleString(), icon: 'fas fa-hammer' },
+            { label: 'Energy for control', value: (stats.energyControl || 0).toLocaleString(), icon: 'fas fa-crown' },
+            { label: 'Energy for creeps', value: (stats.energyCreeps || 0).toLocaleString(), icon: 'fas fa-robot' },
+            { label: 'Energy efficiency', value: `${stats.energyPercentage || 0}%`, icon: 'fas fa-percentage' },
+            { label: 'CPU efficiency', value: `${stats.cpuPercentage || 0}%`, icon: 'fas fa-microchip' },
             { label: 'GCL Level', value: stats.gcl || 0, icon: 'fas fa-star' },
-            { label: 'Strukturen gesamt', value: stats.totalStructures || 0, icon: 'fas fa-building' },
-            { label: 'Durchschnitt Raum Level', value: stats.avgRoomLevel || 0, icon: 'fas fa-level-up-alt' }
+            { label: 'Total structures', value: stats.totalStructures || 0, icon: 'fas fa-building' },
+            { label: 'Average room level', value: stats.avgRoomLevel || 0, icon: 'fas fa-level-up-alt' }
         ];
         
         statsData.forEach(stat => {
@@ -705,7 +705,7 @@ class ScreepsDashboard {
             this.stopUpdating();
         }
         
-        this.addConsoleMessage('info', 'Dashboard Updates gestartet');
+        this.addConsoleMessage('info', 'Dashboard updates started');
         this.updateDashboard(); // Initial update
         
         this.intervalId = setInterval(() => {
@@ -717,7 +717,7 @@ class ScreepsDashboard {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
-            this.addConsoleMessage('info', 'Dashboard Updates gestoppt');
+            this.addConsoleMessage('info', 'Dashboard updates stopped');
         }
     }
 
@@ -725,7 +725,7 @@ class ScreepsDashboard {
     updateConfiguration(token, serverUrl, customUrl) {
         try {
             if (!token) {
-                throw new Error('API Token ist erforderlich');
+                throw new Error('API Token is required');
             }
             
             this.api.setToken(token);
@@ -736,7 +736,7 @@ class ScreepsDashboard {
                 this.api.setServerUrl(serverUrl);
             }
             
-            this.addConsoleMessage('success', 'Konfiguration gespeichert');
+            this.addConsoleMessage('success', 'Configuration saved');
             
             // Restart dashboard
             this.stopUpdating();
@@ -1636,7 +1636,7 @@ class ScreepsDashboard {
             
         } catch (error) {
             console.error('Error updating room management:', error);
-            this.addConsoleMessage('error', `Fehler beim Aktualisieren der Raum-Verwaltung: ${error.message}`);
+            this.addConsoleMessage('error', `Error updating room management: ${error.message}`);
         }
     }
 
@@ -1734,12 +1734,12 @@ window.saveConfig = function() {
     const customUrl = document.getElementById('customUrl').value.trim();
     
     if (!token) {
-        alert('Bitte gib einen API Token ein');
+        alert('Please enter an API token');
         return;
     }
     
     if (!window.dashboard) {
-        alert('Dashboard nicht initialisiert. Bitte lade die Seite neu.');
+        alert('Dashboard not initialized. Please reload the page.');
         return;
     }
     
@@ -1753,7 +1753,7 @@ window.saveConfig = function() {
     
     window.closeConfigModal();
     window.dashboard.startUpdating();
-    window.dashboard.addConsoleMessage('success', 'Konfiguration gespeichert');
+    window.dashboard.addConsoleMessage('success', 'Configuration saved');
 };
 
 // Dashboard wird über window.dashboard in index.html initialisiert

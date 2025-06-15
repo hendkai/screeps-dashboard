@@ -501,7 +501,7 @@ class ScreepsAPI {
                         console.log(`Room info available for ${room.name}:`, room.info);
                     }
                 }
-                        });
+            });
             
             // Verbesserte Creep-Zählung mit der neuen getUserCreeps Methode
             if (userCreeps && userCreeps.count !== undefined) {
