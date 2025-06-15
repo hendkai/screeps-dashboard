@@ -429,17 +429,6 @@
         // Global dashboard variable
         let dashboard = null;
 
-        // Initialize dashboard when page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            try {
-                dashboard = new ScreepsDashboard();
-                window.dashboard = dashboard; // Also make it available on window for debugging
-                console.log('Dashboard initialized successfully');
-            } catch (error) {
-                console.error('Failed to initialize dashboard:', error);
-            }
-        });
-
         // Configuration modal functions
         function openConfigModal() {
             document.getElementById('configModal').classList.add('show');
@@ -449,36 +438,53 @@
             document.getElementById('configModal').classList.remove('show');
         }
 
-        // Handle configuration form submission
-        document.getElementById('configForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            if (!dashboard) {
-                alert('Dashboard nicht initialisiert. Bitte lade die Seite neu.');
-                return;
-            }
-            
-            const token = document.getElementById('apiToken').value;
-            const serverUrl = document.getElementById('serverUrl').value;
-            const customUrl = document.getElementById('customUrl').value;
-            
-            // Use the dashboard's updateConfiguration method
-            const success = dashboard.updateConfiguration(token, serverUrl, customUrl);
-            
-            if (success) {
-                closeConfigModal();
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                dashboard = new ScreepsDashboard();
+                window.dashboard = dashboard; // Also make it available on window for debugging
+                console.log('Dashboard initialized successfully');
+                
+                // Setup form event listener AFTER dashboard is initialized
+                setupFormHandlers();
+                
+            } catch (error) {
+                console.error('Failed to initialize dashboard:', error);
             }
         });
 
-        // Handle server URL changes
-        document.getElementById('serverUrl').addEventListener('change', (e) => {
-            const customGroup = document.getElementById('customUrlGroup');
-            if (e.target.value === 'custom') {
-                customGroup.style.display = 'block';
-            } else {
-                customGroup.style.display = 'none';
-            }
-        });
+        function setupFormHandlers() {
+            // Handle configuration form submission
+            document.getElementById('configForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                if (!dashboard) {
+                    alert('Dashboard nicht initialisiert. Bitte lade die Seite neu.');
+                    return;
+                }
+                
+                const token = document.getElementById('apiToken').value;
+                const serverUrl = document.getElementById('serverUrl').value;
+                const customUrl = document.getElementById('customUrl').value;
+                
+                // Use the dashboard's updateConfiguration method
+                const success = dashboard.updateConfiguration(token, serverUrl, customUrl);
+                
+                if (success) {
+                    closeConfigModal();
+                }
+            });
+
+            // Handle server URL changes
+            document.getElementById('serverUrl').addEventListener('change', (e) => {
+                const customGroup = document.getElementById('customUrlGroup');
+                if (e.target.value === 'custom') {
+                    customGroup.style.display = 'block';
+                } else {
+                    customGroup.style.display = 'none';
+                }
+            });
+        }
     </script>
 </body>
 </html> 
