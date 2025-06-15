@@ -518,9 +518,25 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1><i class="fas fa-robot"></i> Screeps Dashboard</h1>
-            <div class="user-info" id="userInfo" style="color: #00ff88; margin-bottom: 0.5rem;">
-                <i class="fas fa-user"></i> <span id="currentUser">Lade Benutzer...</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div>
+                    <h1><i class="fas fa-robot"></i> Screeps Dashboard</h1>
+                    <div class="user-info" id="userInfo" style="color: #00ff88; margin-bottom: 0.5rem;">
+                        <i class="fas fa-user"></i> <span id="currentUser">Lade Benutzer...</span>
+                    </div>
+                </div>
+                <button onclick="logout()" style="
+                    background: #f44336; 
+                    color: white; 
+                    border: none; 
+                    padding: 0.5rem 1rem; 
+                    border-radius: 6px; 
+                    cursor: pointer;
+                    font-size: 0.9rem;
+                    transition: background 0.3s ease;
+                " onmouseover="this.style.background='#d32f2f'" onmouseout="this.style.background='#f44336'">
+                    <i class="fas fa-sign-out-alt"></i> Abmelden
+                </button>
             </div>
             <div id="connectionStatus" class="connection-status disconnected">
                 <i class="fas fa-circle"></i>
