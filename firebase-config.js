@@ -1,12 +1,12 @@
 // Firebase Configuration
 const firebaseConfig = {
-    // Diese Werte müssen durch echte Firebase-Konfiguration ersetzt werden
-    apiKey: "your-api-key",
-    authDomain: "screeps-dashboard.firebaseapp.com",
-    projectId: "screeps-dashboard",
-    storageBucket: "screeps-dashboard.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "your-app-id"
+    apiKey: "AIzaSyALqsFl17kuvfsfFAu0dYq-KXsyuMXQkDI",
+    authDomain: "screeps-dashboard-72412.firebaseapp.com",
+    projectId: "screeps-dashboard-72412",
+    storageBucket: "screeps-dashboard-72412.firebasestorage.app",
+    messagingSenderId: "892354091133",
+    appId: "1:892354091133:web:f4f842be434b439ee5b914",
+    measurementId: "G-FJMJRBVX47"
 };
 
 class FirebaseManager {

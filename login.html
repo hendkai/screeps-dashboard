@@ -93,6 +93,18 @@
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('Login page loaded');
+            
+            // Initialize Firebase
+            if (window.firebaseManager) {
+                console.log('Initializing Firebase...');
+                const initialized = await window.firebaseManager.init();
+                if (!initialized) {
+                    showError('Firebase konnte nicht initialisiert werden. Demo-Modus ist weiterhin verfügbar.');
+                } else {
+                    console.log('Firebase successfully initialized');
+                }
+            }
+            
             setupEventListeners();
         });
 
@@ -107,7 +119,18 @@
             });
 
             document.getElementById('googleSignIn').addEventListener('click', async () => {
-                showError('Firebase ist noch nicht konfiguriert. Verwende den Demo-Modus.');
+                try {
+                    setLoading(true);
+                    if (window.firebaseManager && window.firebaseManager.isInitialized) {
+                        await window.firebaseManager.signInWithGoogle();
+                    } else {
+                        showError('Firebase wird initialisiert... Bitte versuche es in einem Moment erneut.');
+                    }
+                } catch (error) {
+                    showError('Google-Anmeldung fehlgeschlagen: ' + error.message);
+                } finally {
+                    setLoading(false);
+                }
             });
 
             document.getElementById('apiKeyForm').addEventListener('submit', (e) => {
