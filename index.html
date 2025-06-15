@@ -1,20 +1,12 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Screeps Dashboard</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --screeps-green: #00ff88;
-            --screeps-blue: #4ecdc4;
-            --dark-bg: #1a1a1a;
-            --card-bg: #2a2a2a;
-            --border-color: #3a3a3a;
-        }
-
         * {
             margin: 0;
             padding: 0;
@@ -22,14 +14,14 @@
         }
 
         body {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #ffffff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--dark-bg);
-            color: var(--screeps-green);
             min-height: 100vh;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -37,15 +29,16 @@
         .header {
             text-align: center;
             margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 255, 136, 0.3);
         }
 
         .header h1 {
-            font-size: 2.5rem;
+            color: #00ff88;
             margin-bottom: 10px;
-            background: linear-gradient(45deg, var(--screeps-green), var(--screeps-blue));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-size: 2.5rem;
         }
 
         .connection-status {
@@ -59,127 +52,433 @@
         }
 
         .connection-status.connected {
-            background: rgba(0, 255, 136, 0.2);
-            color: var(--screeps-green);
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border: 1px solid rgba(76, 175, 80, 0.3);
         }
 
         .connection-status.disconnected {
-            background: rgba(255, 0, 0, 0.2);
-            color: #ff4444;
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 1px solid rgba(244, 67, 54, 0.3);
         }
 
         .connection-status.connecting {
-            background: rgba(255, 165, 0, 0.2);
-            color: #ffa500;
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+
+        .connection-status i {
+            font-size: 0.8rem;
+        }
+
+        .cors-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .cors-warning .title {
+            color: #ffc107;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .cors-warning p {
+            margin-bottom: 10px;
+        }
+
+        .cors-warning ul {
+            margin-left: 20px;
+        }
+
+        .cors-warning li {
+            margin-bottom: 5px;
+        }
+
+        .config-controls {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: #00cc6a;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin: 2px;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
         }
 
         .stat-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 255, 136, 0.3);
             border-radius: 10px;
             padding: 20px;
             text-align: center;
-            transition: transform 0.2s ease;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
         .stat-card:hover {
-            transform: translateY(-2px);
-            border-color: var(--screeps-green);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 255, 136, 0.2);
         }
 
         .stat-card .icon {
             font-size: 2rem;
+            color: #00ff88;
             margin-bottom: 10px;
-            color: var(--screeps-blue);
         }
 
         .stat-card .value {
             font-size: 1.8rem;
             font-weight: bold;
+            color: #ffffff;
             margin-bottom: 5px;
         }
 
         .stat-card .label {
             font-size: 0.9rem;
-            opacity: 0.8;
+            color: #cccccc;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .charts-section {
-            margin-bottom: 30px;
+            margin-bottom: 40px;
         }
 
         .charts-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 20px;
+            gap: 30px;
         }
 
         .chart-container {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 255, 136, 0.3);
             border-radius: 10px;
             padding: 20px;
-            height: 300px;
         }
 
         .chart-container h3 {
+            color: #00ff88;
             margin-bottom: 15px;
-            text-align: center;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-container canvas {
+            max-width: 100%;
+            height: auto !important;
+        }
+
+        .room-visualization-section {
+            margin-bottom: 40px;
+        }
+
+        .room-visualization-section h2 {
+            color: #00ff88;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .room-selector {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .room-selector label {
+            color: #00ff88;
+            font-weight: 500;
+        }
+
+        .room-selector select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: white;
+            padding: 8px 12px;
+            font-size: 1rem;
+        }
+
+        .room-selector select option {
+            background: #2d2d2d;
+            color: white;
+        }
+
+        .room-map-container {
+            display: flex;
+            gap: 20px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .room-map-container canvas {
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            background: #000;
+        }
+
+        .room-info-panel {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+
+        .room-info-panel h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+        }
+
+        .room-legend {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .room-legend h4 {
+            color: #00ff88;
+            margin-bottom: 15px;
+        }
+
+        .legend-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .multi-room-section {
+            margin-bottom: 40px;
+        }
+
+        .multi-room-section h2 {
+            color: #00ff88;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .room-comparison {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .room-comparison h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .table-container table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .table-container th,
+        .table-container td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .table-container th {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            font-weight: 600;
+        }
+
+        .table-container tr:hover {
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .efficiency-badge,
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .efficiency-high {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .efficiency-medium {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+
+        .efficiency-low {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+
+        .status-active {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .status-warning {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+
+        .status-danger {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+
+        .room-performance-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
         }
 
         .data-section {
-            margin-bottom: 30px;
+            margin-bottom: 40px;
         }
 
         .data-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
         }
 
         .data-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 255, 136, 0.3);
             border-radius: 10px;
             padding: 20px;
-            max-height: 400px;
-            overflow-y: auto;
         }
 
         .data-card h3 {
+            color: #00ff88;
             margin-bottom: 15px;
-            color: var(--screeps-green);
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .data-list {
             list-style: none;
+            max-height: 300px;
+            overflow-y: auto;
         }
 
         .data-item {
             padding: 10px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            margin-bottom: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            border-left: 3px solid #00ff88;
+            transition: background 0.3s ease;
         }
 
-        .data-item:last-child {
-            border-bottom: none;
+        .data-item:hover {
+            background: rgba(255, 255, 255, 0.1);
         }
 
         .console {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            padding: 20px;
-            max-height: 300px;
+            background: #000;
+            border: 1px solid #00ff88;
+            border-radius: 8px;
+            padding: 15px;
+            height: 200px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
             font-size: 0.9rem;
@@ -187,37 +486,23 @@
 
         .console-message {
             margin-bottom: 5px;
-            padding: 5px;
-            border-radius: 3px;
+            padding: 2px 0;
         }
 
         .console-message.info {
-            color: var(--screeps-blue);
+            color: #00ff88;
+        }
+
+        .console-message.warning {
+            color: #ffc107;
         }
 
         .console-message.error {
-            color: #ff4444;
-            background: rgba(255, 68, 68, 0.1);
+            color: #f44336;
         }
 
         .console-message.success {
-            color: var(--screeps-green);
-        }
-
-        .btn {
-            background: var(--screeps-green);
-            color: var(--dark-bg);
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.2s ease;
-        }
-
-        .btn:hover {
-            background: var(--screeps-blue);
-            transform: translateY(-1px);
+            color: #4caf50;
         }
 
         .config-modal {
@@ -229,21 +514,29 @@
             height: 100%;
             background: rgba(0, 0, 0, 0.8);
             z-index: 1000;
-        }
-
-        .config-modal.show {
-            display: flex;
             align-items: center;
             justify-content: center;
         }
 
+        .config-modal.show {
+            display: flex;
+        }
+
         .config-content {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
+            background: #2d2d2d;
+            border: 1px solid #00ff88;
             border-radius: 10px;
             padding: 30px;
             max-width: 500px;
             width: 90%;
+        }
+
+        .config-content h2 {
+            color: #00ff88;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .form-group {
@@ -252,22 +545,32 @@
 
         .form-group label {
             display: block;
+            color: #00ff88;
             margin-bottom: 5px;
-            font-weight: bold;
+            font-weight: 500;
         }
 
-        .form-group input, .form-group select {
+        .form-group input,
+        .form-group select {
             width: 100%;
             padding: 10px;
-            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 5px;
-            background: var(--dark-bg);
-            color: var(--screeps-green);
+            color: white;
+            font-size: 1rem;
         }
 
-        .form-group input:focus, .form-group select:focus {
+        .form-group input:focus,
+        .form-group select:focus {
             outline: none;
-            border-color: var(--screeps-green);
+            border-color: #00ff88;
+            box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.2);
+        }
+
+        .form-group select option {
+            background: #2d2d2d;
+            color: white;
         }
 
         .form-actions {
@@ -276,241 +579,36 @@
             justify-content: flex-end;
         }
 
-        .cors-warning {
-            background: rgba(255, 165, 0, 0.2);
-            border: 1px solid #ffa500;
-            color: #ffa500;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
 
-        .cors-warning .title {
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
+            .header h1 {
+                font-size: 2rem;
+            }
 
-        .cors-warning ul {
-            margin-left: 20px;
-        }
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 15px;
+            }
 
-        .config-controls {
-            text-align: center;
-            margin-bottom: 20px;
-        }
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
 
-        /* Room Visualization Styles */
-        .room-visualization-section {
-            margin: 2rem 0;
-            padding: 1.5rem;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
+            .room-map-container {
+                flex-direction: column;
+            }
 
-        .room-selector {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-        }
+            .room-selector {
+                flex-direction: column;
+                align-items: stretch;
+            }
 
-        .room-selector label {
-            font-weight: 600;
-            color: #00ff88;
-        }
-
-        .room-selector select {
-            padding: 0.5rem 1rem;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(0, 255, 136, 0.3);
-            border-radius: 6px;
-            color: #fff;
-            min-width: 150px;
-        }
-
-        .btn-secondary {
-            padding: 0.5rem 1rem;
-            background: rgba(0, 255, 136, 0.1);
-            border: 1px solid rgba(0, 255, 136, 0.3);
-            border-radius: 6px;
-            color: #00ff88;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .btn-secondary:hover {
-            background: rgba(0, 255, 136, 0.2);
-            border-color: #00ff88;
-        }
-
-        .btn-primary {
-            padding: 0.5rem 1rem;
-            background: #00ff88;
-            border: 1px solid #00ff88;
-            border-radius: 6px;
-            color: #000;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            background: #00cc6a;
-            border-color: #00cc6a;
-        }
-
-        .room-map-container {
-            display: flex;
-            gap: 2rem;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-        }
-
-        #roomMap {
-            border: 2px solid rgba(0, 255, 136, 0.3);
-            border-radius: 8px;
-            background: #000;
-            cursor: crosshair;
-        }
-
-        .room-info-panel {
-            flex: 1;
-            min-width: 300px;
-            padding: 1rem;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .room-info-panel h3 {
-            color: #00ff88;
-            margin-bottom: 1rem;
-        }
-
-        .room-legend {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 1rem;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .room-legend h4 {
-            color: #00ff88;
-            margin-bottom: 0.5rem;
-        }
-
-        .legend-items {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        .legend-color {
-            width: 16px;
-            height: 16px;
-            border-radius: 3px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        /* Multi-Room Management Styles */
-        .multi-room-section {
-            margin: 2rem 0;
-            padding: 1.5rem;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .room-comparison {
-            margin-bottom: 2rem;
-        }
-
-        .table-container {
-            overflow-x: auto;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        #roomComparisonTable {
-            width: 100%;
-            border-collapse: collapse;
-            background: rgba(0, 0, 0, 0.3);
-        }
-
-        #roomComparisonTable th,
-        #roomComparisonTable td {
-            padding: 0.75rem 1rem;
-            text-align: left;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        #roomComparisonTable th {
-            background: rgba(0, 255, 136, 0.1);
-            color: #00ff88;
-            font-weight: 600;
-        }
-
-        #roomComparisonTable tr:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .room-performance-charts {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 2rem;
-        }
-
-        .efficiency-badge {
-            padding: 0.25rem 0.5rem;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .efficiency-high {
-            background: rgba(76, 175, 80, 0.2);
-            color: #4CAF50;
-        }
-
-        .efficiency-medium {
-            background: rgba(255, 152, 0, 0.2);
-            color: #FF9800;
-        }
-
-        .efficiency-low {
-            background: rgba(244, 67, 54, 0.2);
-            color: #F44336;
-        }
-
-        .status-badge {
-            padding: 0.25rem 0.5rem;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .status-active {
-            background: rgba(76, 175, 80, 0.2);
-            color: #4CAF50;
-        }
-
-        .status-warning {
-            background: rgba(255, 152, 0, 0.2);
-            color: #FF9800;
-        }
-
-        .status-danger {
-            background: rgba(244, 67, 54, 0.2);
-            color: #F44336;
+            .legend-items {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            }
         }
     </style>
 </head>
@@ -522,7 +620,7 @@
                 <div>
                     <h1><i class="fas fa-robot"></i> Screeps Dashboard</h1>
                     <div class="user-info" id="userInfo" style="color: #00ff88; margin-bottom: 0.5rem;">
-                        <i class="fas fa-user"></i> <span id="currentUser">Lade Benutzer...</span>
+                        <i class="fas fa-user"></i> <span id="currentUser">Loading user...</span>
                     </div>
                 </div>
                 <button onclick="logout()" style="
@@ -535,30 +633,30 @@
                     font-size: 0.9rem;
                     transition: background 0.3s ease;
                 " onmouseover="this.style.background='#d32f2f'" onmouseout="this.style.background='#f44336'">
-                    <i class="fas fa-sign-out-alt"></i> Abmelden
+                    <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
             </div>
             <div id="connectionStatus" class="connection-status disconnected">
                 <i class="fas fa-circle"></i>
-                <span>Getrennt</span>
+                <span>Disconnected</span>
             </div>
         </div>
 
         <!-- CORS Warning -->
         <div class="cors-warning">
             <div class="title"><i class="fas fa-exclamation-triangle"></i> CORS Information</div>
-            <p>Dieses Dashboard kommuniziert direkt mit der Screeps API. Bei CORS-Problemen:</p>
+            <p>This dashboard communicates directly with the Screeps API. If you encounter CORS issues:</p>
             <ul>
-                <li>Installiere eine CORS-Browser-Extension (Chrome: "CORS Unblock", Firefox: "CORS Everywhere")</li>
-                <li>Oder verwende einen anderen Browser (manche blockieren weniger)</li>
-                <li>Stelle sicher, dass dein API-Token korrekt ist</li>
+                <li>Install a CORS browser extension (Chrome: "CORS Unblock", Firefox: "CORS Everywhere")</li>
+                <li>Or use a different browser (some block less)</li>
+                <li>Make sure your API token is correct</li>
             </ul>
         </div>
 
         <!-- Configuration Controls -->
         <div class="config-controls">
             <button class="btn" onclick="openConfigModal()">
-                <i class="fas fa-cog"></i> Konfiguration
+                <i class="fas fa-cog"></i> Configuration
             </button>
         </div>
 
@@ -567,7 +665,7 @@
             <div class="stat-card">
                 <div class="icon"><i class="fas fa-bolt"></i></div>
                 <div class="value" id="energyValue">-/-</div>
-                <div class="label">Energie</div>
+                <div class="label">Energy</div>
             </div>
             <div class="stat-card">
                 <div class="icon"><i class="fas fa-users"></i></div>
@@ -577,12 +675,12 @@
             <div class="stat-card">
                 <div class="icon"><i class="fas fa-microchip"></i></div>
                 <div class="value" id="cpuUsage">-/-</div>
-                <div class="label">CPU Verbrauch</div>
+                <div class="label">CPU Usage</div>
             </div>
             <div class="stat-card">
                 <div class="icon"><i class="fas fa-home"></i></div>
                 <div class="value" id="roomCount">-</div>
-                <div class="label">Räume</div>
+                <div class="label">Rooms</div>
             </div>
             <div class="stat-card">
                 <div class="icon"><i class="fas fa-star"></i></div>
@@ -602,27 +700,27 @@
             <div class="stat-card">
                 <div class="icon"><i class="fas fa-shield-alt"></i></div>
                 <div class="value" id="towersValue">-</div>
-                <div class="label">Türme</div>
+                <div class="label">Towers</div>
             </div>
             <div class="stat-card">
                 <div class="icon"><i class="fas fa-hammer"></i></div>
                 <div class="value" id="constructionValue">-</div>
-                <div class="label">Baustellen</div>
+                <div class="label">Construction Sites</div>
             </div>
             <div class="stat-card">
                 <div class="icon"><i class="fas fa-gem"></i></div>
                 <div class="value" id="mineralsValue">-</div>
-                <div class="label">Mineralien</div>
+                <div class="label">Minerals</div>
             </div>
             <div class="stat-card">
                 <div class="icon"><i class="fas fa-level-up-alt"></i></div>
                 <div class="value" id="avgRoomLevel">-</div>
-                <div class="label">Ø Raum Level</div>
+                <div class="label">Avg Room Level</div>
             </div>
             <div class="stat-card">
                 <div class="icon"><i class="fas fa-pickaxe"></i></div>
                 <div class="value" id="energyHarvested">-</div>
-                <div class="label">Energie geerntet</div>
+                <div class="label">Energy Harvested</div>
             </div>
             <div class="stat-card">
                 <div class="icon"><i class="fas fa-database"></i></div>
@@ -642,7 +740,7 @@
             <div class="stat-card">
                 <div class="icon"><i class="fas fa-building"></i></div>
                 <div class="value" id="totalStructures">-</div>
-                <div class="label">Strukturen gesamt</div>
+                <div class="label">Total Structures</div>
             </div>
             <div class="stat-card">
                 <div class="icon"><i class="fas fa-ticket-alt"></i></div>
@@ -652,7 +750,7 @@
             <div class="stat-card">
                 <div class="icon"><i class="fas fa-magic"></i></div>
                 <div class="value" id="powerExperimentations">-</div>
-                <div class="label">Power Experimente</div>
+                <div class="label">Power Experiments</div>
             </div>
         </div>
 
@@ -660,39 +758,39 @@
         <div class="charts-section">
             <div class="charts-grid">
                 <div class="chart-container">
-                    <h3><i class="fas fa-chart-line"></i> Energie Verlauf</h3>
+                    <h3><i class="fas fa-chart-line"></i> Energy History</h3>
                     <canvas id="energyChart"></canvas>
                 </div>
                 <div class="chart-container">
-                    <h3><i class="fas fa-chart-area"></i> CPU Verlauf</h3>
+                    <h3><i class="fas fa-chart-area"></i> CPU History</h3>
                     <canvas id="cpuChart"></canvas>
                 </div>
                 <div class="chart-container">
-                    <h3><i class="fas fa-chart-bar"></i> Creeps Verlauf</h3>
+                    <h3><i class="fas fa-chart-bar"></i> Creeps History</h3>
                     <canvas id="creepsChart"></canvas>
                 </div>
                 <div class="chart-container">
-                    <h3><i class="fas fa-chart-pie"></i> Raum Level Verteilung</h3>
+                    <h3><i class="fas fa-chart-pie"></i> Room Level Distribution</h3>
                     <canvas id="roomLevelChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Room Visualisierung Section -->
+        <!-- Room Visualization Section -->
         <div class="room-visualization-section">
-            <h2><i class="fas fa-map"></i> Room Visualisierung</h2>
+            <h2><i class="fas fa-map"></i> Room Visualization</h2>
             
             <!-- Room Selector -->
             <div class="room-selector">
-                <label for="roomSelect">Raum auswählen:</label>
+                <label for="roomSelect">Select Room:</label>
                 <select id="roomSelect">
-                    <option value="">Raum wählen...</option>
+                    <option value="">Choose room...</option>
                 </select>
                 <button id="refreshRoomBtn" class="btn-secondary">
-                    <i class="fas fa-sync-alt"></i> Aktualisieren
+                    <i class="fas fa-sync-alt"></i> Refresh
                 </button>
                 <button id="loadW26N53Btn" class="btn-primary" onclick="dashboard.selectRoom('W26N53')">
-                    <i class="fas fa-map"></i> W26N53 laden
+                    <i class="fas fa-map"></i> Load W26N53
                 </button>
                 <button id="testRoomBtn" class="btn-primary" onclick="dashboard.testRoomVisualization()">
                     <i class="fas fa-bug"></i> API Test
@@ -701,13 +799,13 @@
                     <i class="fas fa-eye"></i> Test Room
                 </button>
                 <button id="exportDataBtn" class="btn-primary" onclick="dashboard.exportData()">
-                    <i class="fas fa-download"></i> Daten exportieren
+                    <i class="fas fa-download"></i> Export Data
                 </button>
                 <button id="showHistoryBtn" class="btn-primary" onclick="showHistoricalData()">
-                    <i class="fas fa-history"></i> Verlauf anzeigen
+                    <i class="fas fa-history"></i> Show History
                 </button>
                 <button id="logoutBtn" class="btn-secondary" onclick="logout()" style="background: #f44336;">
-                    <i class="fas fa-sign-out-alt"></i> Abmelden
+                    <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
             </div>
 
@@ -715,16 +813,16 @@
             <div class="room-map-container">
                 <canvas id="roomMap" width="500" height="500"></canvas>
                 <div class="room-info-panel">
-                    <h3 id="roomTitle">Raum Information</h3>
+                    <h3 id="roomTitle">Room Information</h3>
                     <div id="roomDetails">
-                        <p>Wähle einen Raum aus, um Details zu sehen</p>
+                        <p>Select a room to see details</p>
                     </div>
                 </div>
             </div>
 
             <!-- Room Legend -->
             <div class="room-legend">
-                <h4>Legende:</h4>
+                <h4>Legend:</h4>
                 <div class="legend-items">
                     <div class="legend-item"><div class="legend-color" style="background: #4CAF50;"></div> Spawn</div>
                     <div class="legend-item"><div class="legend-color" style="background: #2196F3;"></div> Extension</div>
@@ -746,22 +844,22 @@
             
             <!-- Room Comparison Table -->
             <div class="room-comparison">
-                <h3>Raum-Vergleich</h3>
+                <h3>Room Comparison</h3>
                 <div class="table-container">
                     <table id="roomComparisonTable">
                         <thead>
                             <tr>
-                                <th>Raum</th>
+                                <th>Room</th>
                                 <th>Level</th>
-                                <th>Energie</th>
+                                <th>Energy</th>
                                 <th>Creeps</th>
-                                <th>Strukturen</th>
-                                <th>Effizienz</th>
+                                <th>Structures</th>
+                                <th>Efficiency</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody id="roomComparisonBody">
-                            <!-- Wird dynamisch gefüllt -->
+                            <!-- Dynamically filled -->
                         </tbody>
                     </table>
                 </div>
@@ -770,11 +868,11 @@
             <!-- Room Performance Charts -->
             <div class="room-performance-charts">
                 <div class="chart-container">
-                    <h3><i class="fas fa-chart-bar"></i> Energie pro Raum</h3>
+                    <h3><i class="fas fa-chart-bar"></i> Energy per Room</h3>
                     <canvas id="roomEnergyChart"></canvas>
                 </div>
                 <div class="chart-container">
-                    <h3><i class="fas fa-chart-line"></i> Creeps pro Raum</h3>
+                    <h3><i class="fas fa-chart-line"></i> Creeps per Room</h3>
                     <canvas id="roomCreepsChart"></canvas>
                 </div>
             </div>
@@ -786,25 +884,25 @@
                 <div class="data-card">
                     <h3><i class="fas fa-users"></i> Creeps</h3>
                     <ul id="creepsList" class="data-list">
-                        <li class="data-item">Keine Daten verfügbar</li>
+                        <li class="data-item">No data available</li>
                     </ul>
                 </div>
                 <div class="data-card">
-                    <h3><i class="fas fa-map"></i> Räume</h3>
+                    <h3><i class="fas fa-map"></i> Rooms</h3>
                     <ul id="roomsList" class="data-list">
-                        <li class="data-item">Keine Daten verfügbar</li>
+                        <li class="data-item">No data available</li>
                     </ul>
                 </div>
                 <div class="data-card">
                     <h3><i class="fas fa-crown"></i> Controller Status</h3>
                     <ul id="controllersList" class="data-list">
-                        <li class="data-item">Keine Daten verfügbar</li>
+                        <li class="data-item">No data available</li>
                     </ul>
                 </div>
                 <div class="data-card">
-                    <h3><i class="fas fa-chart-line"></i> Produktions-Statistiken</h3>
+                    <h3><i class="fas fa-chart-line"></i> Production Statistics</h3>
                     <ul id="productionStats" class="data-list">
-                        <li class="data-item">Keine Daten verfügbar</li>
+                        <li class="data-item">No data available</li>
                     </ul>
                 </div>
             </div>
@@ -812,9 +910,9 @@
 
         <!-- Console Section -->
         <div class="data-card">
-            <h3><i class="fas fa-terminal"></i> Konsole</h3>
+            <h3><i class="fas fa-terminal"></i> Console</h3>
             <div id="consoleOutput" class="console">
-                <div class="console-message info">Dashboard initialisiert...</div>
+                <div class="console-message info">Dashboard initialized...</div>
             </div>
         </div>
     </div>
@@ -822,26 +920,26 @@
     <!-- Configuration Modal -->
     <div id="configModal" class="config-modal">
         <div class="config-content">
-            <h2><i class="fas fa-cog"></i> Dashboard Konfiguration</h2>
+            <h2><i class="fas fa-cog"></i> Dashboard Configuration</h2>
             <form id="configForm">
                 <div class="form-group">
                     <label for="apiToken">API Token:</label>
-                    <input type="password" id="apiToken" placeholder="Dein Screeps API Token">
+                    <input type="password" id="apiToken" placeholder="Your Screeps API Token">
                 </div>
                 <div class="form-group">
                     <label for="serverUrl">Server:</label>
                     <select id="serverUrl">
-                        <option value="https://screeps.com/api/">Offizieller Server</option>
-                        <option value="custom">Benutzerdefiniert</option>
+                        <option value="https://screeps.com/api/">Official Server</option>
+                        <option value="custom">Custom</option>
                     </select>
                 </div>
                 <div class="form-group" id="customUrlGroup" style="display: none;">
-                    <label for="customUrl">Benutzerdefinierte URL:</label>
+                    <label for="customUrl">Custom URL:</label>
                     <input type="url" id="customUrl" placeholder="https://...">
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn" onclick="closeConfigModal()">Abbrechen</button>
-                    <button type="submit" class="btn">Speichern</button>
+                    <button type="button" class="btn" onclick="closeConfigModal()">Cancel</button>
+                    <button type="submit" class="btn">Save</button>
                 </div>
             </form>
         </div>
@@ -851,7 +949,7 @@
     <script src="screeps-api.js"></script>
     <script src="dashboard.js"></script>
     <script>
-        // Global dashboard variable auf window-Objekt
+        // Global dashboard variable on window object
         window.dashboard = window.dashboard || null;
         let isInitialized = false;
 
@@ -901,9 +999,9 @@
                  window.firebaseManager.signOut().catch(console.error);
              }
              
-                           // Redirect to login
-              window.location.href = 'login.html';
-          }
+             // Redirect to login
+             window.location.href = 'login.html';
+         }
 
           function updateUserInfo() {
               const currentUserSpan = document.getElementById('currentUser');
@@ -911,60 +1009,60 @@
               const apiToken = localStorage.getItem('screepsApiToken');
               
               if (demoMode === 'true') {
-                  currentUserSpan.textContent = 'Demo-Modus';
+                  currentUserSpan.textContent = 'Demo Mode';
               } else if (apiToken) {
-                  currentUserSpan.textContent = 'API-Token gesetzt';
+                  currentUserSpan.textContent = 'API Token Set';
               } else {
-                  currentUserSpan.textContent = 'Nicht angemeldet';
+                  currentUserSpan.textContent = 'Not logged in';
               }
           }
 
          function showHistoricalData() {
              if (!window.dashboard) {
-                 alert('Dashboard nicht initialisiert');
+                 alert('Dashboard not initialized');
                  return;
              }
-            
-            const stats = window.dashboard.getHistoricalStats(24);
-            const rooms = window.dashboard.getHistoricalRooms(24);
-            
-            let content = '<h3>Historische Daten (letzte 24 Stunden)</h3>';
-            content += `<p>Statistik-Einträge: ${stats.length}</p>`;
-            content += `<p>Raum-Einträge: ${rooms.length}</p>`;
-            
-            if (stats.length > 0) {
-                const latest = stats[stats.length - 1];
-                content += '<h4>Neueste Statistiken:</h4>';
-                content += `<p>Zeit: ${new Date(latest.timestamp).toLocaleString()}</p>`;
-                content += `<p>Energie: ${latest.data.energy || 0}</p>`;
-                content += `<p>Creeps: ${latest.data.creeps || 0}</p>`;
-                content += `<p>CPU: ${latest.data.cpu || 0}</p>`;
-            }
-            
-            // Create modal for historical data
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.8); display: flex; align-items: center;
-                justify-content: center; z-index: 10000;
-            `;
-            modal.innerHTML = `
-                <div style="
-                    background: #1a1a1a; border-radius: 8px; padding: 2rem;
-                    max-width: 600px; max-height: 80vh; overflow-y: auto;
-                    border: 1px solid #00ff88;
-                ">
-                    ${content}
-                    <button onclick="this.parentElement.parentElement.remove()" 
-                            style="margin-top: 1rem; padding: 0.5rem 1rem; 
-                                   background: #00ff88; color: #000; border: none; 
-                                   border-radius: 4px; cursor: pointer;">
-                        Schließen
-                    </button>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
+             
+             const stats = window.dashboard.getHistoricalStats(24);
+             const rooms = window.dashboard.getHistoricalRooms(24);
+             
+             let content = '<h3>Historical Data (last 24 hours)</h3>';
+             content += `<p>Statistics entries: ${stats.length}</p>`;
+             content += `<p>Room entries: ${rooms.length}</p>`;
+             
+             if (stats.length > 0) {
+                 const latest = stats[stats.length - 1];
+                 content += '<h4>Latest Statistics:</h4>';
+                 content += `<p>Time: ${new Date(latest.timestamp).toLocaleString()}</p>`;
+                 content += `<p>Energy: ${latest.data.energy || 0}</p>`;
+                 content += `<p>Creeps: ${latest.data.creeps || 0}</p>`;
+                 content += `<p>CPU: ${latest.data.cpu || 0}</p>`;
+             }
+             
+             // Create modal for historical data
+             const modal = document.createElement('div');
+             modal.style.cssText = `
+                 position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                 background: rgba(0,0,0,0.8); display: flex; align-items: center;
+                 justify-content: center; z-index: 10000;
+             `;
+             modal.innerHTML = `
+                 <div style="
+                     background: #1a1a1a; border-radius: 8px; padding: 2rem;
+                     max-width: 600px; max-height: 80vh; overflow-y: auto;
+                     border: 1px solid #00ff88;
+                 ">
+                     ${content}
+                     <button onclick="this.parentElement.parentElement.remove()" 
+                             style="margin-top: 1rem; padding: 0.5rem 1rem; 
+                                    background: #00ff88; color: #000; border: none; 
+                                    border-radius: 4px; cursor: pointer;">
+                         Close
+                     </button>
+                 </div>
+             `;
+             document.body.appendChild(modal);
+         }
 
         function setupFormHandlers() {
             console.log('Setting up form handlers...');
@@ -979,54 +1077,77 @@
                 configForm.parentNode.replaceChild(newConfigForm, configForm);
                 
                 // Add the submit event listener to the new form
-                newConfigForm.addEventListener('submit', handleFormSubmit);
+                document.getElementById('configForm').addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    console.log('Config form submitted');
+                    
+                    const token = document.getElementById('apiToken').value.trim();
+                    const serverUrl = document.getElementById('serverUrl').value;
+                    const customUrl = document.getElementById('customUrl').value.trim();
+                    
+                    if (!token) {
+                        alert('Please enter an API token');
+                        return;
+                    }
+                    
+                    if (!window.dashboard) {
+                        alert('Dashboard not initialized. Please reload the page.');
+                        return;
+                    }
+                    
+                    try {
+                        // Set the token
+                        window.dashboard.api.setToken(token);
+                        
+                        // Set the server URL
+                        if (serverUrl === 'custom' && customUrl) {
+                            window.dashboard.api.setServerUrl(customUrl);
+                        } else {
+                            window.dashboard.api.setServerUrl('https://screeps.com/api/');
+                        }
+                        
+                        // Save to localStorage
+                        localStorage.setItem('screepsApiToken', token);
+                        
+                        // Close modal and start updating
+                        closeConfigModal();
+                        window.dashboard.startUpdating();
+                        window.dashboard.addConsoleMessage('success', 'Configuration saved');
+                        
+                        console.log('Configuration saved successfully');
+                        
+                    } catch (error) {
+                        console.error('Error saving configuration:', error);
+                        alert('Error saving configuration: ' + error.message);
+                    }
+                });
             }
             
+            // Setup server URL change handler
             if (serverUrl) {
-                // Clone server URL select to remove all event listeners
                 const newServerUrl = serverUrl.cloneNode(true);
                 serverUrl.parentNode.replaceChild(newServerUrl, serverUrl);
                 
-                // Add the change event listener to the new select
-                newServerUrl.addEventListener('change', handleServerUrlChange);
+                document.getElementById('serverUrl').addEventListener('change', function(e) {
+                    const customGroup = document.getElementById('customUrlGroup');
+                    if (customGroup) {
+                        if (e.target.value === 'custom') {
+                            customGroup.style.display = 'block';
+                        } else {
+                            customGroup.style.display = 'none';
+                        }
+                    }
+                });
             }
-            
-            console.log('Form handlers setup complete');
         }
 
-        function handleFormSubmit(e) {
-            e.preventDefault();
-            console.log('Form submitted, dashboard available:', !!window.dashboard);
-            
-            if (!window.dashboard) {
-                alert('Dashboard nicht initialisiert. Bitte lade die Seite neu.');
-                return;
-            }
-            
-            const token = document.getElementById('apiToken').value;
-            const serverUrl = document.getElementById('serverUrl').value;
-            const customUrl = document.getElementById('customUrl').value;
-            
-            console.log('Updating configuration...');
-            
-            // Use the dashboard's updateConfiguration method
-            const success = window.dashboard.updateConfiguration(token, serverUrl, customUrl);
-            
-            if (success) {
+        // Close modal when clicking outside
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('configModal');
+            if (e.target === modal) {
                 closeConfigModal();
             }
-        }
-
-        function handleServerUrlChange(e) {
-            const customGroup = document.getElementById('customUrlGroup');
-            if (customGroup) {
-                if (e.target.value === 'custom') {
-                    customGroup.style.display = 'block';
-                } else {
-                    customGroup.style.display = 'none';
-                }
-            }
-        }
+        });
     </script>
 </body>
 </html> 

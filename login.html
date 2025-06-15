@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -39,18 +39,18 @@
     <div class="login-container">
         <div class="login-header">
             <h1><i class="fas fa-robot"></i> Screeps Dashboard</h1>
-            <p>Melde dich an, um deine Screeps-Daten zu verwalten</p>
+            <p>Sign in to manage your Screeps data</p>
         </div>
         <div id="errorMessage" class="error-message"></div>
         <div id="successMessage" class="success-message"></div>
         <div id="loginSection">
             <div class="login-form">
                 <button id="googleSignIn" class="btn btn-google">
-                    <i class="fab fa-google"></i> Mit Google anmelden
+                    <i class="fab fa-google"></i> Sign in with Google
                 </button>
-                <div class="divider"><span>oder verwende Demo-Modus</span></div>
+                <div class="divider"><span>or use Demo Mode</span></div>
                 <button id="demoMode" class="btn btn-primary">
-                    <i class="fas fa-play"></i> Demo-Modus starten
+                    <i class="fas fa-play"></i> Start Demo Mode
                 </button>
             </div>
         </div>
@@ -58,30 +58,30 @@
             <div class="api-key-section">
                 <h3><i class="fas fa-key"></i> Screeps API Key</h3>
                 <div class="api-key-info">
-                    <p><strong>So erhältst du deinen API Key:</strong></p>
+                    <p><strong>How to get your API Key:</strong></p>
                     <ol>
-                        <li>Gehe zu <a href="https://screeps.com/a/#!/account/auth-tokens" target="_blank">screeps.com/account/auth-tokens</a></li>
-                        <li>Klicke auf "Generate Token"</li>
-                        <li>Kopiere den Token und füge ihn hier ein</li>
+                        <li>Go to <a href="https://screeps.com/a/#!/account/auth-tokens" target="_blank">screeps.com/account/auth-tokens</a></li>
+                        <li>Click "Generate Token"</li>
+                        <li>Copy the token and paste it here</li>
                     </ol>
                 </div>
                 <form id="apiKeyForm">
                     <div class="form-group">
                         <label for="apiKey">API Token:</label>
-                        <input type="password" id="apiKey" placeholder="Dein Screeps API Token" required>
+                        <input type="password" id="apiKey" placeholder="Your Screeps API Token" required>
                     </div>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Token speichern
+                        <i class="fas fa-save"></i> Save Token
                     </button>
                 </form>
             </div>
         </div>
         <div id="dashboardLink" style="display: none;">
             <div class="api-key-section">
-                <h3><i class="fas fa-check-circle"></i> Bereit!</h3>
-                <p>Du kannst jetzt das Dashboard verwenden.</p>
+                <h3><i class="fas fa-check-circle"></i> Ready!</h3>
+                <p>You can now use the dashboard.</p>
                 <a href="index.html" class="btn btn-primary">
-                    <i class="fas fa-tachometer-alt"></i> Zum Dashboard
+                    <i class="fas fa-tachometer-alt"></i> Go to Dashboard
                 </a>
             </div>
         </div>
@@ -99,7 +99,7 @@
                 console.log('Initializing Firebase...');
                 const initialized = await window.firebaseManager.init();
                 if (!initialized) {
-                    showError('Firebase konnte nicht initialisiert werden. Demo-Modus ist weiterhin verfügbar.');
+                    showError('Firebase could not be initialized. Demo mode is still available.');
                 } else {
                     console.log('Firebase successfully initialized');
                 }
@@ -112,7 +112,7 @@
             document.getElementById('demoMode').addEventListener('click', () => {
                 localStorage.setItem('demoMode', 'true');
                 localStorage.setItem('screepsApiToken', '16b0222c-47e4-482b-bf6e-6ba76994a35e');
-                showSuccess('Demo-Modus aktiviert!');
+                showSuccess('Demo mode activated!');
                 setTimeout(() => {
                     window.location.href = 'index.html';
                 }, 1000);
@@ -124,10 +124,10 @@
                     if (window.firebaseManager && window.firebaseManager.isInitialized) {
                         await window.firebaseManager.signInWithGoogle();
                     } else {
-                        showError('Firebase wird initialisiert... Bitte versuche es in einem Moment erneut.');
+                        showError('Firebase is initializing... Please try again in a moment.');
                     }
                 } catch (error) {
-                    showError('Google-Anmeldung fehlgeschlagen: ' + error.message);
+                    showError('Google sign-in failed: ' + error.message);
                 } finally {
                     setLoading(false);
                 }
@@ -138,7 +138,7 @@
                 const apiKey = document.getElementById('apiKey').value;
                 localStorage.setItem('screepsApiToken', apiKey);
                 localStorage.removeItem('demoMode');
-                showSuccess('API Token gespeichert!');
+                showSuccess('API token saved!');
                 setTimeout(() => {
                     window.location.href = 'index.html';
                 }, 1000);
@@ -157,6 +157,15 @@
             successDiv.textContent = message;
             successDiv.style.display = 'block';
             setTimeout(() => { successDiv.style.display = 'none'; }, 3000);
+        }
+
+        function setLoading(loading) {
+            const container = document.querySelector('.login-container');
+            if (loading) {
+                container.classList.add('loading');
+            } else {
+                container.classList.remove('loading');
+            }
         }
     </script>
 </body>

@@ -61,7 +61,7 @@ class ScreepsDashboard {
                 if (typeof openConfigModal === 'function') {
                     openConfigModal();
                 }
-                this.addConsoleMessage('info', 'Bitte konfiguriere deinen API Token um zu beginnen');
+                this.addConsoleMessage('info', 'Please configure your API token to begin');
             }, 1000);
         }
     }
@@ -545,7 +545,7 @@ class ScreepsDashboard {
         if (totalCreeps === 0) {
             const li = document.createElement('li');
             li.className = 'data-item';
-            li.textContent = 'Keine Creeps gefunden';
+                                li.textContent = 'No creeps found';
             creepsList.appendChild(li);
         }
     }
@@ -559,7 +559,7 @@ class ScreepsDashboard {
         if (roomsData.length === 0) {
             const li = document.createElement('li');
             li.className = 'data-item';
-            li.textContent = 'Keine Räume gefunden';
+            li.textContent = 'No rooms found';
             roomsList.appendChild(li);
             return;
         }
@@ -1497,7 +1497,7 @@ class ScreepsDashboard {
             const firstRoom = rooms[0];
             roomSelect.value = firstRoom;
             this.selectRoom(firstRoom);
-            this.addConsoleMessage('info', `Automatisch Raum ${firstRoom} ausgewählt`);
+            this.addConsoleMessage('info', `Automatically selected room ${firstRoom}`);
         }
     }
 
