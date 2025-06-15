@@ -2169,39 +2169,95 @@ class ScreepsDashboard {
 
     // Enhanced export function that includes Firestore data
     async exportAllData() {
-        const exportData = {
-            localData: {
+        try {
+            const allData = {
                 stats: this.dataHistory.stats,
-                rooms: this.dataHistory.rooms
-            },
-            exportDate: new Date().toISOString(),
-            version: '2.0'
-        };
+                rooms: this.dataHistory.rooms,
+                exportTime: new Date().toISOString(),
+                version: '1.0'
+            };
+            
+            const dataStr = JSON.stringify(allData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `screeps-dashboard-data-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            console.log('All data exported successfully');
+        } catch (error) {
+            console.error('Failed to export all data:', error);
+        }
+    }
 
-        // Add Firestore data if user is authenticated
-        if (window.firebaseManager && window.firebaseManager.user) {
-            try {
-                exportData.firestoreData = {
-                    stats: await this.loadStatsFromFirestore(100),
-                    rooms: await this.loadRoomsFromFirestore(100)
-                };
-                exportData.userEmail = window.firebaseManager.user.email;
-            } catch (error) {
-                console.warn('Could not include Firestore data in export:', error);
-            }
+    // DEBUG: CPU-Daten testen
+    debugCpuData() {
+        console.log('=== CPU DEBUG INFO ===');
+        
+        // Aktuelle Chart-Daten
+        if (this.chartData.cpu) {
+            console.log('CPU Chart Data:', this.chartData.cpu.data);
+            console.log('Last 5 CPU values:', this.chartData.cpu.data.slice(-5));
         }
         
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `screeps-complete-data-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // Letzte Stats
+        if (this.lastStats) {
+            console.log('Last Stats CPU:', this.lastStats.cpu);
+            console.log('Last Stats CPU Limit:', this.lastStats.cpuLimit);
+            console.log('Last Stats CPU Percentage:', this.lastStats.cpuPercentage);
+        }
+        
+        // API-Test
+        if (this.api) {
+            console.log('Testing API CPU data...');
+            this.api.getGameStats().then(stats => {
+                console.log('Fresh API CPU data:', {
+                    cpu: stats.cpu,
+                    cpuLimit: stats.cpuLimit,
+                    cpuPercentage: stats.cpuPercentage
+                });
+            }).catch(err => {
+                console.error('API test failed:', err);
+            });
+        }
+        
+        console.log('=== END CPU DEBUG ===');
     }
 }
+
+// Globale Debug-Funktionen
+global.debugCpu = function() {
+    if (window.dashboard) {
+        window.dashboard.debugCpuData();
+    } else {
+        console.log('Dashboard not available');
+    }
+};
+
+global.testCpuFix = function() {
+    console.log('🧪 Testing CPU fix...');
+    if (window.dashboard && window.dashboard.api) {
+        window.dashboard.api.getGameStats().then(stats => {
+            console.log('✅ CPU Test Results:');
+            console.log(`CPU Used: ${stats.cpu}`);
+            console.log(`CPU Limit: ${stats.cpuLimit}`);
+            console.log(`CPU Percentage: ${stats.cpuPercentage}%`);
+            console.log(`Expected: CPU should be < ${stats.cpuLimit} and vary over time`);
+            
+            if (stats.cpu === stats.cpuLimit) {
+                console.log('❌ Still showing CPU limit instead of usage!');
+                console.log('💡 Check if dashboard_exporter.js is running in Screeps');
+            } else {
+                console.log('✅ CPU fix working correctly!');
+            }
+        });
+    }
+};
 
 // Global Modal Functions
 window.openConfigModal = function() {

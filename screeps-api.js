@@ -368,14 +368,15 @@ class ScreepsAPI {
         try {
             console.log('Fetching game stats...');
             
-            // Hole alle verfügbaren Daten parallel
-            const [userInfo, rooms, overview, userStats, userCreeps, userStructures] = await Promise.all([
+            // Hole alle verfügbaren Daten parallel (inklusive Memory für CPU-Daten)
+            const [userInfo, rooms, overview, userStats, userCreeps, userStructures, memory] = await Promise.all([
                 this.getUserInfo(),
                 this.getUserRooms(),
                 this.getOverview().catch(e => { console.warn('Overview API failed:', e); return null; }),
                 this.getUserStats().catch(e => { console.warn('User stats API failed:', e); return null; }),
                 this.getUserCreeps().catch(e => { console.warn('User creeps API failed:', e); return null; }),
-                this.getUserStructures().catch(e => { console.warn('User structures API failed:', e); return null; })
+                this.getUserStructures().catch(e => { console.warn('User structures API failed:', e); return null; }),
+                this.getMemory().catch(e => { console.warn('Memory API failed:', e); return null; })
             ]);
             
             console.log('User info:', userInfo);
@@ -384,6 +385,7 @@ class ScreepsAPI {
             console.log('User stats:', userStats);
             console.log('User creeps:', userCreeps);
             console.log('User structures:', userStructures);
+            console.log('Memory data:', memory);
             
             let totalEnergy = 0;
             let totalEnergyCapacity = 0;
@@ -399,8 +401,34 @@ class ScreepsAPI {
             let roomControlLevels = [];
             
             // CPU-Daten aus verschiedenen Quellen
-            let cpuUsed = userInfo.cpu || 0;
+            // FIXED: Verwende Memory.dashboard für korrekte CPU-Daten falls verfügbar
+            let cpuUsed = 0;
             let cpuLimit = userInfo.cpuLimit || userInfo.cpuShard?.shard3 || 20;
+            
+            // Versuche CPU-Daten aus Memory.dashboard zu holen (vom dashboard_exporter.js)
+            if (memory && memory.dashboard && memory.dashboard.stats && memory.dashboard.stats.cpu) {
+                cpuUsed = memory.dashboard.stats.cpu.used || 0;
+                cpuLimit = memory.dashboard.stats.cpu.limit || cpuLimit;
+                console.log(`✅ Using accurate CPU data from dashboard: ${cpuUsed.toFixed(2)}/${cpuLimit}`);
+            } else if (overview && overview.stats && overview.stats.cpu) {
+                // Versuche aus Overview-Daten
+                cpuUsed = overview.stats.cpu.used || overview.stats.cpu || 0;
+                cpuLimit = overview.stats.cpu.limit || cpuLimit;
+                console.log(`⚠️ Using CPU data from overview: ${cpuUsed}/${cpuLimit}`);
+            } else {
+                // Fallback: Schätze basierend auf userInfo (oft ungenau)
+                // userInfo.cpu ist meist das Limit, nicht der Verbrauch
+                if (userInfo.cpuUsed !== undefined) {
+                    cpuUsed = userInfo.cpuUsed;
+                } else if (userInfo.cpu !== undefined && userInfo.cpu < cpuLimit) {
+                    // Nur verwenden wenn es kleiner als das Limit ist (wahrscheinlich Verbrauch)
+                    cpuUsed = userInfo.cpu;
+                } else {
+                    // Schätze 50% des Limits als Fallback
+                    cpuUsed = cpuLimit * 0.5;
+                }
+                console.log(`❌ Using estimated CPU data: ${cpuUsed}/${cpuLimit} (inaccurate - enable dashboard_exporter.js for real data)`);
+            }
 
             rooms.forEach(room => {
                 console.log(`Processing room: ${room.name}`, room.data);
