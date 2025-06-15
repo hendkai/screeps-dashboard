@@ -426,8 +426,8 @@
     <script src="screeps-api.js"></script>
     <script src="dashboard.js"></script>
     <script>
-        // Global dashboard variable
-        let dashboard = null;
+        // Global dashboard variable auf window-Objekt
+        window.dashboard = window.dashboard || null;
         let isInitialized = false;
 
         // Configuration modal functions
@@ -442,15 +442,14 @@
         // Initialize dashboard when page loads
         document.addEventListener('DOMContentLoaded', () => {
             // Prevent multiple initializations
-            if (isInitialized) {
+            if (isInitialized || window.dashboard) {
                 console.warn('Dashboard already initialized');
                 return;
             }
 
             try {
                 console.log('Initializing dashboard...');
-                dashboard = new ScreepsDashboard();
-                window.dashboard = dashboard; // Also make it available on window for debugging
+                window.dashboard = new ScreepsDashboard();
                 isInitialized = true;
                 console.log('Dashboard initialized successfully');
                 
@@ -493,9 +492,9 @@
 
         function handleFormSubmit(e) {
             e.preventDefault();
-            console.log('Form submitted, dashboard available:', !!dashboard);
+            console.log('Form submitted, dashboard available:', !!window.dashboard);
             
-            if (!dashboard) {
+            if (!window.dashboard) {
                 alert('Dashboard nicht initialisiert. Bitte lade die Seite neu.');
                 return;
             }
@@ -507,7 +506,7 @@
             console.log('Updating configuration...');
             
             // Use the dashboard's updateConfiguration method
-            const success = dashboard.updateConfiguration(token, serverUrl, customUrl);
+            const success = window.dashboard.updateConfiguration(token, serverUrl, customUrl);
             
             if (success) {
                 closeConfigModal();
