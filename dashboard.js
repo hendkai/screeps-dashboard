@@ -44,6 +44,8 @@ class ScreepsDashboard {
         // Check for API token linking after Firebase is ready
         setTimeout(async () => {
             await this.checkAndPromptApiTokenLink();
+            // Sync with Firestore if user is authenticated
+            await this.syncWithFirestore();
         }, 2000);
         
         if (this.api.getToken()) {
@@ -456,6 +458,9 @@ class ScreepsDashboard {
         // Store current stats for historical data
         this.lastStats = stats;
         this.saveStatsToHistory(stats);
+        
+        // Save to Firestore if user is authenticated
+        this.saveStatsToFirestore(stats);
         
         const elements = {
             energyValue: document.getElementById('energyValue'),
@@ -1703,6 +1708,9 @@ class ScreepsDashboard {
                 this.roomsData.set(room.name, room);
             });
             
+            // Save rooms data to Firestore if user is authenticated
+            this.saveRoomsToFirestore(roomsData);
+            
             // If no room is selected yet and we have rooms, select the first one
             if (!this.roomVisualization.selectedRoom && roomsData.length > 0) {
                 const firstRoom = roomsData[0].name;
@@ -2031,6 +2039,167 @@ class ScreepsDashboard {
             console.error('Failed to load API token from account:', error);
             return false;
         }
+    }
+
+    // Firestore integration methods
+    async saveStatsToFirestore(stats) {
+        if (!window.firebaseManager || !window.firebaseManager.user) {
+            return; // User not authenticated, skip Firestore save
+        }
+
+        try {
+            await window.firebaseManager.saveGameData('stats', {
+                ...stats,
+                timestamp: new Date().toISOString(),
+                source: 'dashboard'
+            });
+            console.log('Stats saved to Firestore');
+        } catch (error) {
+            console.warn('Failed to save stats to Firestore:', error);
+        }
+    }
+
+    async saveRoomsToFirestore(roomsData) {
+        if (!window.firebaseManager || !window.firebaseManager.user) {
+            return; // User not authenticated, skip Firestore save
+        }
+
+        try {
+            await window.firebaseManager.saveGameData('rooms', {
+                rooms: roomsData,
+                timestamp: new Date().toISOString(),
+                source: 'dashboard'
+            });
+            console.log('Rooms data saved to Firestore');
+        } catch (error) {
+            console.warn('Failed to save rooms data to Firestore:', error);
+        }
+    }
+
+    async loadStatsFromFirestore(limit = 24) {
+        if (!window.firebaseManager || !window.firebaseManager.user) {
+            return [];
+        }
+
+        try {
+            const data = await window.firebaseManager.getGameData('stats', limit);
+            console.log(`Loaded ${data.length} stats entries from Firestore`);
+            return data;
+        } catch (error) {
+            console.warn('Failed to load stats from Firestore:', error);
+            return [];
+        }
+    }
+
+    async loadRoomsFromFirestore(limit = 24) {
+        if (!window.firebaseManager || !window.firebaseManager.user) {
+            return [];
+        }
+
+        try {
+            const data = await window.firebaseManager.getGameData('rooms', limit);
+            console.log(`Loaded ${data.length} rooms entries from Firestore`);
+            return data;
+        } catch (error) {
+            console.warn('Failed to load rooms from Firestore:', error);
+            return [];
+        }
+    }
+
+    async syncWithFirestore() {
+        if (!window.firebaseManager || !window.firebaseManager.user) {
+            console.log('User not authenticated, skipping Firestore sync');
+            return;
+        }
+
+        try {
+            console.log('Syncing historical data with Firestore...');
+            
+            // Load recent data from Firestore
+            const firestoreStats = await this.loadStatsFromFirestore(50);
+            const firestoreRooms = await this.loadRoomsFromFirestore(50);
+            
+            // Merge with local data (avoid duplicates by timestamp)
+            const localStats = this.dataHistory.stats;
+            const localRooms = this.dataHistory.rooms;
+            
+            // Create timestamp sets for deduplication
+            const localStatsTimestamps = new Set(localStats.map(entry => entry.timestamp));
+            const localRoomsTimestamps = new Set(localRooms.map(entry => entry.timestamp));
+            
+            // Add Firestore data that's not in local storage
+            firestoreStats.forEach(entry => {
+                if (entry.data && entry.data.timestamp && !localStatsTimestamps.has(entry.data.timestamp)) {
+                    this.dataHistory.stats.push({
+                        timestamp: entry.data.timestamp,
+                        data: entry.data
+                    });
+                }
+            });
+            
+            firestoreRooms.forEach(entry => {
+                if (entry.data && entry.data.timestamp && !localRoomsTimestamps.has(entry.data.timestamp)) {
+                    this.dataHistory.rooms.push({
+                        timestamp: entry.data.timestamp,
+                        data: entry.data.rooms || entry.data
+                    });
+                }
+            });
+            
+            // Sort by timestamp and keep only recent entries
+            this.dataHistory.stats.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            this.dataHistory.rooms.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            
+            // Keep only the last maxEntries
+            if (this.dataHistory.stats.length > this.dataHistory.maxEntries) {
+                this.dataHistory.stats = this.dataHistory.stats.slice(-this.dataHistory.maxEntries);
+            }
+            if (this.dataHistory.rooms.length > this.dataHistory.maxEntries) {
+                this.dataHistory.rooms = this.dataHistory.rooms.slice(-this.dataHistory.maxEntries);
+            }
+            
+            // Save merged data to localStorage
+            this.saveToLocalStorage();
+            
+            console.log('Firestore sync completed');
+        } catch (error) {
+            console.error('Failed to sync with Firestore:', error);
+        }
+    }
+
+    // Enhanced export function that includes Firestore data
+    async exportAllData() {
+        const exportData = {
+            localData: {
+                stats: this.dataHistory.stats,
+                rooms: this.dataHistory.rooms
+            },
+            exportDate: new Date().toISOString(),
+            version: '2.0'
+        };
+
+        // Add Firestore data if user is authenticated
+        if (window.firebaseManager && window.firebaseManager.user) {
+            try {
+                exportData.firestoreData = {
+                    stats: await this.loadStatsFromFirestore(100),
+                    rooms: await this.loadRoomsFromFirestore(100)
+                };
+                exportData.userEmail = window.firebaseManager.user.email;
+            } catch (error) {
+                console.warn('Could not include Firestore data in export:', error);
+            }
+        }
+        
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `screeps-complete-data-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 }
 
