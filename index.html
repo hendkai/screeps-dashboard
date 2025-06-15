@@ -195,6 +195,61 @@
             margin-bottom: 40px;
         }
 
+        .chart-mode-toggle {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-mode-toggle h2 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-toggle {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            color: #00ff88;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .btn-toggle:hover {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00ff88;
+        }
+
+        .btn-toggle.active {
+            background: rgba(0, 255, 136, 0.3);
+            border-color: #00ff88;
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .chart-info {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+
         .charts-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -770,22 +825,62 @@
 
         <!-- Charts Section -->
         <div class="charts-section">
-            <div class="charts-grid">
+            <!-- Chart Mode Toggle -->
+            <div class="chart-mode-toggle">
+                <h2><i class="fas fa-chart-line"></i> Performance History</h2>
+                <div class="toggle-buttons">
+                    <button id="sessionModeBtn" class="btn-toggle active" onclick="dashboard.switchChartMode('session')">
+                        <i class="fas fa-clock"></i> Session Data
+                    </button>
+                    <button id="historicalModeBtn" class="btn-toggle" onclick="dashboard.switchChartMode('historical')">
+                        <i class="fas fa-database"></i> Historical Data
+                    </button>
+                    <button id="loadHistoricalBtn" class="btn-secondary" onclick="dashboard.loadHistoricalChartData()">
+                        <i class="fas fa-download"></i> Load from Database
+                    </button>
+                </div>
+                <div class="chart-info">
+                    <span id="chartModeInfo">Showing: Current session data (last 20 updates)</span>
+                </div>
+            </div>
+
+            <!-- Session Charts -->
+            <div id="sessionCharts" class="charts-grid">
                 <div class="chart-container">
-                    <h3><i class="fas fa-chart-line"></i> Energy History</h3>
+                    <h3><i class="fas fa-chart-line"></i> Energy History (Session)</h3>
                     <canvas id="energyChart"></canvas>
                 </div>
                 <div class="chart-container">
-                    <h3><i class="fas fa-chart-area"></i> CPU History</h3>
+                    <h3><i class="fas fa-chart-area"></i> CPU History (Session)</h3>
                     <canvas id="cpuChart"></canvas>
                 </div>
                 <div class="chart-container">
-                    <h3><i class="fas fa-chart-bar"></i> Creeps History</h3>
+                    <h3><i class="fas fa-chart-bar"></i> Creeps History (Session)</h3>
                     <canvas id="creepsChart"></canvas>
                 </div>
                 <div class="chart-container">
                     <h3><i class="fas fa-chart-pie"></i> Room Level Distribution</h3>
                     <canvas id="roomLevelChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Historical Charts -->
+            <div id="historicalCharts" class="charts-grid" style="display: none;">
+                <div class="chart-container">
+                    <h3><i class="fas fa-chart-line"></i> Energy History (Database)</h3>
+                    <canvas id="energyChartHistorical"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3><i class="fas fa-chart-area"></i> CPU History (Database)</h3>
+                    <canvas id="cpuChartHistorical"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3><i class="fas fa-chart-bar"></i> Creeps History (Database)</h3>
+                    <canvas id="creepsChartHistorical"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3><i class="fas fa-chart-pie"></i> Room Efficiency Trends</h3>
+                    <canvas id="roomEfficiencyChart"></canvas>
                 </div>
             </div>
         </div>

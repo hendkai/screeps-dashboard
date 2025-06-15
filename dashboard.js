@@ -10,7 +10,14 @@ class ScreepsDashboard {
             cpu: { labels: [], data: [] },
             creeps: { labels: [], data: [] }
         };
+        this.historicalChartData = {
+            energy: { labels: [], data: [] },
+            cpu: { labels: [], data: [] },
+            creeps: { labels: [], data: [] },
+            roomEfficiency: { labels: [], data: [] }
+        };
         this.maxDataPoints = 20;
+        this.currentChartMode = 'session'; // 'session' or 'historical'
         
         // Room visualization and multi-room management
         this.roomVisualization = {
@@ -213,13 +220,22 @@ class ScreepsDashboard {
         const creepsCanvas = document.getElementById('creepsChart');
         const roomLevelCanvas = document.getElementById('roomLevelChart');
         
+        // Historical chart canvases
+        const energyCanvasHistorical = document.getElementById('energyChartHistorical');
+        const cpuCanvasHistorical = document.getElementById('cpuChartHistorical');
+        const creepsCanvasHistorical = document.getElementById('creepsChartHistorical');
+        const roomEfficiencyCanvas = document.getElementById('roomEfficiencyChart');
+        
         if (!energyCanvas || !cpuCanvas) {
             console.warn('Chart canvases not found');
             return;
         }
         
         // Check if canvases are already in use by checking for existing chart instances
-        const canvases = [energyCanvas, cpuCanvas, creepsCanvas, roomLevelCanvas].filter(c => c);
+        const canvases = [
+            energyCanvas, cpuCanvas, creepsCanvas, roomLevelCanvas,
+            energyCanvasHistorical, cpuCanvasHistorical, creepsCanvasHistorical, roomEfficiencyCanvas
+        ].filter(c => c);
         canvases.forEach(canvas => {
             if (Chart.getChart(canvas)) {
                 console.log(`Destroying existing chart on ${canvas.id}`);
@@ -395,12 +411,135 @@ class ScreepsDashboard {
                     }
                 });
             }
+
+            // Initialize Historical Charts
+            this.initHistoricalCharts();
             
             console.log('Charts initialized successfully');
             
         } catch (error) {
             console.error('Failed to initialize charts:', error);
         }
+    }
+
+    initHistoricalCharts() {
+        try {
+            const energyCanvasHistorical = document.getElementById('energyChartHistorical');
+            const cpuCanvasHistorical = document.getElementById('cpuChartHistorical');
+            const creepsCanvasHistorical = document.getElementById('creepsChartHistorical');
+            const roomEfficiencyCanvas = document.getElementById('roomEfficiencyChart');
+
+            // Historical Energy Chart
+            if (energyCanvasHistorical) {
+                const energyCtxHistorical = energyCanvasHistorical.getContext('2d');
+                this.charts.energyHistorical = new Chart(energyCtxHistorical, {
+                    type: 'line',
+                    data: {
+                        labels: this.historicalChartData.energy.labels,
+                        datasets: [{
+                            label: 'Energie (Historisch)',
+                            data: this.historicalChartData.energy.data,
+                            borderColor: '#00ff88',
+                            backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: this.getHistoricalChartOptions()
+                });
+            }
+
+            // Historical CPU Chart
+            if (cpuCanvasHistorical) {
+                const cpuCtxHistorical = cpuCanvasHistorical.getContext('2d');
+                this.charts.cpuHistorical = new Chart(cpuCtxHistorical, {
+                    type: 'line',
+                    data: {
+                        labels: this.historicalChartData.cpu.labels,
+                        datasets: [{
+                            label: 'CPU (Historisch)',
+                            data: this.historicalChartData.cpu.data,
+                            borderColor: '#4ecdc4',
+                            backgroundColor: 'rgba(78, 205, 196, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: this.getHistoricalChartOptions()
+                });
+            }
+
+            // Historical Creeps Chart
+            if (creepsCanvasHistorical) {
+                const creepsCtxHistorical = creepsCanvasHistorical.getContext('2d');
+                this.charts.creepsHistorical = new Chart(creepsCtxHistorical, {
+                    type: 'bar',
+                    data: {
+                        labels: this.historicalChartData.creeps.labels,
+                        datasets: [{
+                            label: 'Creeps (Historisch)',
+                            data: this.historicalChartData.creeps.data,
+                            backgroundColor: 'rgba(255, 159, 64, 0.6)',
+                            borderColor: '#ff9f40',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: this.getHistoricalChartOptions()
+                });
+            }
+
+            // Room Efficiency Chart
+            if (roomEfficiencyCanvas) {
+                const roomEfficiencyCtx = roomEfficiencyCanvas.getContext('2d');
+                this.charts.roomEfficiency = new Chart(roomEfficiencyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: this.historicalChartData.roomEfficiency.labels,
+                        datasets: [{
+                            label: 'Raum-Effizienz (%)',
+                            data: this.historicalChartData.roomEfficiency.data,
+                            borderColor: '#9966ff',
+                            backgroundColor: 'rgba(153, 102, 255, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: this.getHistoricalChartOptions()
+                });
+            }
+
+            console.log('Historical charts initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize historical charts:', error);
+        }
+    }
+
+    getHistoricalChartOptions() {
+        return {
+            responsive: true,
+            maintainAspectRatio: false,
+            devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+            animation: { duration: 0 },
+            plugins: {
+                legend: { labels: { color: '#00ff88' } }
+            },
+            scales: {
+                x: {
+                    ticks: { 
+                        color: '#00ff88',
+                        maxTicksLimit: 12
+                    },
+                    grid: { color: '#333333' }
+                },
+                y: {
+                    ticks: { 
+                        color: '#00ff88',
+                        maxTicksLimit: 8
+                    },
+                    grid: { color: '#333333' }
+                }
+            }
+        };
     }
 
     updateConnectionStatus(status) {
@@ -2345,6 +2484,147 @@ class ScreepsDashboard {
         
         console.log('🔍 === END DETAILED ANALYSIS ===');
     }
+
+    // CHART MODE SWITCHING FUNCTIONS
+    switchChartMode(mode) {
+        this.currentChartMode = mode;
+        
+        const sessionCharts = document.getElementById('sessionCharts');
+        const historicalCharts = document.getElementById('historicalCharts');
+        const sessionBtn = document.getElementById('sessionModeBtn');
+        const historicalBtn = document.getElementById('historicalModeBtn');
+        const chartModeInfo = document.getElementById('chartModeInfo');
+        
+        if (mode === 'session') {
+            sessionCharts.style.display = 'grid';
+            historicalCharts.style.display = 'none';
+            sessionBtn.classList.add('active');
+            historicalBtn.classList.remove('active');
+            chartModeInfo.textContent = 'Showing: Current session data (last 20 updates)';
+            console.log('📊 Switched to session chart mode');
+        } else if (mode === 'historical') {
+            sessionCharts.style.display = 'none';
+            historicalCharts.style.display = 'grid';
+            sessionBtn.classList.remove('active');
+            historicalBtn.classList.add('active');
+            chartModeInfo.textContent = 'Showing: Historical data from database (last 24 hours)';
+            console.log('📊 Switched to historical chart mode');
+            
+            // Load historical data if not already loaded
+            if (this.historicalChartData.energy.labels.length === 0) {
+                this.loadHistoricalChartData();
+            }
+        }
+    }
+
+    async loadHistoricalChartData() {
+        try {
+            console.log('📥 Loading historical chart data from Firestore...');
+            
+            if (!window.firebaseManager || !window.firebaseManager.isInitialized) {
+                console.warn('Firebase not available, cannot load historical data');
+                this.addConsoleMessage('warning', 'Database not available - historical charts disabled');
+                return;
+            }
+
+            // Load historical stats from Firestore (last 24 hours)
+            const historicalStats = await this.loadStatsFromFirestore(48); // 48 entries = ~24 hours at 30min intervals
+            
+            if (!historicalStats || historicalStats.length === 0) {
+                console.warn('No historical data found in Firestore');
+                this.addConsoleMessage('warning', 'No historical data found in database');
+                return;
+            }
+
+            // Process historical data for charts
+            this.processHistoricalDataForCharts(historicalStats);
+            
+            // Update historical charts
+            this.updateHistoricalCharts();
+            
+            console.log(`✅ Loaded ${historicalStats.length} historical data points`);
+            this.addConsoleMessage('success', `Loaded ${historicalStats.length} historical data points from database`);
+            
+        } catch (error) {
+            console.error('Failed to load historical chart data:', error);
+            this.addConsoleMessage('error', 'Failed to load historical data: ' + error.message);
+        }
+    }
+
+    processHistoricalDataForCharts(historicalStats) {
+        // Clear existing historical data
+        this.historicalChartData = {
+            energy: { labels: [], data: [] },
+            cpu: { labels: [], data: [] },
+            creeps: { labels: [], data: [] },
+            roomEfficiency: { labels: [], data: [] }
+        };
+
+        // Sort by timestamp
+        historicalStats.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        // Process each data point
+        historicalStats.forEach(stat => {
+            const timestamp = new Date(stat.timestamp);
+            const timeLabel = timestamp.toLocaleDateString('de-DE') + ' ' + 
+                            timestamp.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+            
+            // Energy data
+            this.historicalChartData.energy.labels.push(timeLabel);
+            this.historicalChartData.energy.data.push(stat.energy || 0);
+            
+            // CPU data
+            this.historicalChartData.cpu.labels.push(timeLabel);
+            this.historicalChartData.cpu.data.push(stat.cpu || 0);
+            
+            // Creeps data
+            this.historicalChartData.creeps.labels.push(timeLabel);
+            this.historicalChartData.creeps.data.push(stat.creeps || 0);
+            
+            // Room efficiency data (calculate from energy percentage)
+            this.historicalChartData.roomEfficiency.labels.push(timeLabel);
+            this.historicalChartData.roomEfficiency.data.push(stat.energyPercentage || 0);
+        });
+
+        console.log('📊 Processed historical data for charts:', {
+            energyPoints: this.historicalChartData.energy.data.length,
+            cpuPoints: this.historicalChartData.cpu.data.length,
+            creepsPoints: this.historicalChartData.creeps.data.length,
+            efficiencyPoints: this.historicalChartData.roomEfficiency.data.length
+        });
+    }
+
+    updateHistoricalCharts() {
+        // Update Energy Historical Chart
+        if (this.charts.energyHistorical) {
+            this.charts.energyHistorical.data.labels = this.historicalChartData.energy.labels;
+            this.charts.energyHistorical.data.datasets[0].data = this.historicalChartData.energy.data;
+            this.charts.energyHistorical.update();
+        }
+
+        // Update CPU Historical Chart
+        if (this.charts.cpuHistorical) {
+            this.charts.cpuHistorical.data.labels = this.historicalChartData.cpu.labels;
+            this.charts.cpuHistorical.data.datasets[0].data = this.historicalChartData.cpu.data;
+            this.charts.cpuHistorical.update();
+        }
+
+        // Update Creeps Historical Chart
+        if (this.charts.creepsHistorical) {
+            this.charts.creepsHistorical.data.labels = this.historicalChartData.creeps.labels;
+            this.charts.creepsHistorical.data.datasets[0].data = this.historicalChartData.creeps.data;
+            this.charts.creepsHistorical.update();
+        }
+
+        // Update Room Efficiency Chart
+        if (this.charts.roomEfficiency) {
+            this.charts.roomEfficiency.data.labels = this.historicalChartData.roomEfficiency.labels;
+            this.charts.roomEfficiency.data.datasets[0].data = this.historicalChartData.roomEfficiency.data;
+            this.charts.roomEfficiency.update();
+        }
+
+        console.log('📊 Historical charts updated successfully');
+    }
 }
 
 // Globale Debug-Funktionen
@@ -2359,6 +2639,63 @@ global.debugCpu = function() {
 global.debugCpuDetailed = function() {
     if (window.dashboard) {
         window.dashboard.debugCpuDetailed();
+    } else {
+        console.log('Dashboard not available');
+    }
+};
+
+// NEUE DEBUG-FUNKTIONEN FÜR CHART-MODI
+global.testChartModes = function() {
+    if (window.dashboard) {
+        console.log('🧪 Testing Chart Mode Switching...');
+        console.log('Current mode:', window.dashboard.currentChartMode);
+        
+        // Test session mode
+        console.log('📊 Testing session mode...');
+        window.dashboard.switchChartMode('session');
+        
+        setTimeout(() => {
+            // Test historical mode
+            console.log('📊 Testing historical mode...');
+            window.dashboard.switchChartMode('historical');
+            
+            setTimeout(() => {
+                // Back to session mode
+                console.log('📊 Back to session mode...');
+                window.dashboard.switchChartMode('session');
+                console.log('✅ Chart mode switching test completed');
+            }, 2000);
+        }, 2000);
+    } else {
+        console.log('Dashboard not available');
+    }
+};
+
+global.loadHistoricalData = function() {
+    if (window.dashboard) {
+        console.log('📥 Loading historical chart data...');
+        window.dashboard.loadHistoricalChartData();
+    } else {
+        console.log('Dashboard not available');
+    }
+};
+
+global.showChartInfo = function() {
+    if (window.dashboard) {
+        console.log('📊 Chart Information:');
+        console.log('Current mode:', window.dashboard.currentChartMode);
+        console.log('Session data points:', {
+            energy: window.dashboard.chartData.energy.data.length,
+            cpu: window.dashboard.chartData.cpu.data.length,
+            creeps: window.dashboard.chartData.creeps.data.length
+        });
+        console.log('Historical data points:', {
+            energy: window.dashboard.historicalChartData.energy.data.length,
+            cpu: window.dashboard.historicalChartData.cpu.data.length,
+            creeps: window.dashboard.historicalChartData.creeps.data.length,
+            roomEfficiency: window.dashboard.historicalChartData.roomEfficiency.data.length
+        });
+        console.log('Available charts:', Object.keys(window.dashboard.charts));
     } else {
         console.log('Dashboard not available');
     }
