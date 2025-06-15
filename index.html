@@ -298,6 +298,204 @@
             text-align: center;
             margin-bottom: 20px;
         }
+
+        /* Room Visualization Styles */
+        .room-visualization-section {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .room-selector {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .room-selector label {
+            font-weight: 600;
+            color: #00ff88;
+        }
+
+        .room-selector select {
+            padding: 0.5rem 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 6px;
+            color: #fff;
+            min-width: 150px;
+        }
+
+        .btn-secondary {
+            padding: 0.5rem 1rem;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 6px;
+            color: #00ff88;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00ff88;
+        }
+
+        .room-map-container {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        #roomMap {
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 8px;
+            background: #000;
+            cursor: crosshair;
+        }
+
+        .room-info-panel {
+            flex: 1;
+            min-width: 300px;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .room-info-panel h3 {
+            color: #00ff88;
+            margin-bottom: 1rem;
+        }
+
+        .room-legend {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .room-legend h4 {
+            color: #00ff88;
+            margin-bottom: 0.5rem;
+        }
+
+        .legend-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Multi-Room Management Styles */
+        .multi-room-section {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .room-comparison {
+            margin-bottom: 2rem;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #roomComparisonTable {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        #roomComparisonTable th,
+        #roomComparisonTable td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #roomComparisonTable th {
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+            font-weight: 600;
+        }
+
+        #roomComparisonTable tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .room-performance-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+        }
+
+        .efficiency-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .efficiency-high {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+
+        .efficiency-medium {
+            background: rgba(255, 152, 0, 0.2);
+            color: #FF9800;
+        }
+
+        .efficiency-low {
+            background: rgba(244, 67, 54, 0.2);
+            color: #F44336;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+
+        .status-warning {
+            background: rgba(255, 152, 0, 0.2);
+            color: #FF9800;
+        }
+
+        .status-danger {
+            background: rgba(244, 67, 54, 0.2);
+            color: #F44336;
+        }
     </style>
 </head>
 <body>
@@ -441,6 +639,90 @@
                 <div class="chart-container">
                     <h3><i class="fas fa-chart-pie"></i> Raum Level Verteilung</h3>
                     <canvas id="roomLevelChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Room Visualisierung Section -->
+        <div class="room-visualization-section">
+            <h2><i class="fas fa-map"></i> Room Visualisierung</h2>
+            
+            <!-- Room Selector -->
+            <div class="room-selector">
+                <label for="roomSelect">Raum auswählen:</label>
+                <select id="roomSelect">
+                    <option value="">Raum wählen...</option>
+                </select>
+                <button id="refreshRoomBtn" class="btn-secondary">
+                    <i class="fas fa-sync-alt"></i> Aktualisieren
+                </button>
+            </div>
+
+            <!-- Room Map Container -->
+            <div class="room-map-container">
+                <canvas id="roomMap" width="500" height="500"></canvas>
+                <div class="room-info-panel">
+                    <h3 id="roomTitle">Raum Information</h3>
+                    <div id="roomDetails">
+                        <p>Wähle einen Raum aus, um Details zu sehen</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Room Legend -->
+            <div class="room-legend">
+                <h4>Legende:</h4>
+                <div class="legend-items">
+                    <div class="legend-item"><div class="legend-color" style="background: #4CAF50;"></div> Spawn</div>
+                    <div class="legend-item"><div class="legend-color" style="background: #2196F3;"></div> Extension</div>
+                    <div class="legend-item"><div class="legend-color" style="background: #FF9800;"></div> Creep</div>
+                    <div class="legend-item"><div class="legend-color" style="background: #9C27B0;"></div> Controller</div>
+                    <div class="legend-item"><div class="legend-color" style="background: #FFEB3B;"></div> Source</div>
+                    <div class="legend-item"><div class="legend-color" style="background: #795548;"></div> Mineral</div>
+                    <div class="legend-item"><div class="legend-color" style="background: #607D8B;"></div> Storage</div>
+                    <div class="legend-item"><div class="legend-color" style="background: #F44336;"></div> Tower</div>
+                    <div class="legend-item"><div class="legend-color" style="background: #333;"></div> Wall</div>
+                    <div class="legend-item"><div class="legend-color" style="background: #8BC34A;"></div> Swamp</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Multi-Room Management Section -->
+        <div class="multi-room-section">
+            <h2><i class="fas fa-building"></i> Multi-Room Management</h2>
+            
+            <!-- Room Comparison Table -->
+            <div class="room-comparison">
+                <h3>Raum-Vergleich</h3>
+                <div class="table-container">
+                    <table id="roomComparisonTable">
+                        <thead>
+                            <tr>
+                                <th>Raum</th>
+                                <th>Level</th>
+                                <th>Energie</th>
+                                <th>Creeps</th>
+                                <th>Strukturen</th>
+                                <th>Effizienz</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roomComparisonBody">
+                            <!-- Wird dynamisch gefüllt -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Room Performance Charts -->
+            <div class="room-performance-charts">
+                <div class="chart-container">
+                    <h3><i class="fas fa-chart-bar"></i> Energie pro Raum</h3>
+                    <canvas id="roomEnergyChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3><i class="fas fa-chart-line"></i> Creeps pro Raum</h3>
+                    <canvas id="roomCreepsChart"></canvas>
                 </div>
             </div>
         </div>

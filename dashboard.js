@@ -11,6 +11,16 @@ class ScreepsDashboard {
             creeps: { labels: [], data: [] }
         };
         this.maxDataPoints = 20;
+        
+        // Room visualization and multi-room management
+        this.roomVisualization = {
+            canvas: null,
+            ctx: null,
+            selectedRoom: null,
+            roomData: null
+        };
+        this.roomsData = new Map();
+        
         this.init();
     }
 
@@ -18,6 +28,8 @@ class ScreepsDashboard {
         this.setupEventListeners();
         this.loadConfig();
         this.initCharts();
+        this.initRoomVisualization();
+        this.initMultiRoomManagement();
         
         if (this.api.getToken()) {
             this.startUpdating();
@@ -316,6 +328,9 @@ class ScreepsDashboard {
             this.updateControllersDisplay(stats.roomControlLevels);
             this.updateProductionStats(stats);
             await this.updateConsole();
+            
+            // Update room management features
+            await this.updateRoomManagement();
             
             this.updateConnectionStatus('connected');
             
@@ -686,6 +701,548 @@ class ScreepsDashboard {
         } catch (error) {
             this.addConsoleMessage('error', error.message);
             return false;
+        }
+    }
+
+    // Room Visualization Methods
+    initRoomVisualization() {
+        this.roomVisualization.canvas = document.getElementById('roomMap');
+        if (this.roomVisualization.canvas) {
+            this.roomVisualization.ctx = this.roomVisualization.canvas.getContext('2d');
+            
+            // Setup room selector
+            const roomSelect = document.getElementById('roomSelect');
+            const refreshBtn = document.getElementById('refreshRoomBtn');
+            
+            if (roomSelect) {
+                roomSelect.addEventListener('change', (e) => {
+                    this.selectRoom(e.target.value);
+                });
+            }
+            
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => {
+                    this.refreshRoomData();
+                });
+            }
+            
+            // Setup canvas click handler for room interaction
+            this.roomVisualization.canvas.addEventListener('click', (e) => {
+                this.handleRoomMapClick(e);
+            });
+        }
+    }
+
+    async selectRoom(roomName) {
+        if (!roomName) return;
+        
+        this.roomVisualization.selectedRoom = roomName;
+        this.addConsoleMessage('info', `Lade Raum ${roomName}...`);
+        
+        try {
+            const roomData = await this.api.getRoomObjects(roomName);
+            const roomTerrain = await this.api.getRoomTerrain(roomName);
+            
+            this.roomVisualization.roomData = {
+                objects: roomData,
+                terrain: roomTerrain,
+                name: roomName
+            };
+            
+            this.drawRoomMap();
+            this.updateRoomInfo();
+            
+        } catch (error) {
+            console.error('Error loading room:', error);
+            this.addConsoleMessage('error', `Fehler beim Laden von Raum ${roomName}: ${error.message}`);
+        }
+    }
+
+    drawRoomMap() {
+        if (!this.roomVisualization.ctx || !this.roomVisualization.roomData) return;
+        
+        const ctx = this.roomVisualization.ctx;
+        const canvas = this.roomVisualization.canvas;
+        const roomData = this.roomVisualization.roomData;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        const cellSize = 10; // 50x50 room = 500px canvas
+        
+        // Draw terrain
+        if (roomData.terrain) {
+            this.drawTerrain(ctx, roomData.terrain, cellSize);
+        }
+        
+        // Draw structures and objects
+        if (roomData.objects) {
+            this.drawRoomObjects(ctx, roomData.objects, cellSize);
+        }
+        
+        // Draw grid
+        this.drawGrid(ctx, cellSize);
+    }
+
+    drawTerrain(ctx, terrain, cellSize) {
+        for (let y = 0; y < 50; y++) {
+            for (let x = 0; x < 50; x++) {
+                const terrainType = terrain[y * 50 + x];
+                let color = '#2a2a2a'; // Plain
+                
+                if (terrainType & 1) color = '#8BC34A'; // Swamp
+                if (terrainType & 2) color = '#333'; // Wall
+                
+                ctx.fillStyle = color;
+                ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+            }
+        }
+    }
+
+    drawRoomObjects(ctx, objects, cellSize) {
+        const colors = {
+            spawn: '#4CAF50',
+            extension: '#2196F3',
+            creep: '#FF9800',
+            controller: '#9C27B0',
+            source: '#FFEB3B',
+            mineral: '#795548',
+            storage: '#607D8B',
+            tower: '#F44336',
+            constructionSite: '#FFC107',
+            road: '#666',
+            container: '#8BC34A',
+            link: '#E91E63',
+            lab: '#3F51B5',
+            terminal: '#009688',
+            observer: '#FF5722',
+            powerSpawn: '#673AB7',
+            extractor: '#795548',
+            nuker: '#F44336',
+            factory: '#607D8B'
+        };
+        
+        objects.forEach(obj => {
+            if (obj.x !== undefined && obj.y !== undefined) {
+                const color = colors[obj.type] || '#FFF';
+                
+                ctx.fillStyle = color;
+                ctx.fillRect(
+                    obj.x * cellSize + 1,
+                    obj.y * cellSize + 1,
+                    cellSize - 2,
+                    cellSize - 2
+                );
+                
+                // Add energy/health bars for certain objects
+                if (obj.type === 'spawn' || obj.type === 'extension') {
+                    this.drawEnergyBar(ctx, obj, cellSize);
+                } else if (obj.type === 'creep') {
+                    this.drawHealthBar(ctx, obj, cellSize);
+                }
+            }
+        });
+    }
+
+    drawEnergyBar(ctx, obj, cellSize) {
+        if (obj.energy !== undefined && obj.energyCapacity !== undefined) {
+            const barWidth = cellSize - 2;
+            const barHeight = 2;
+            const x = obj.x * cellSize + 1;
+            const y = obj.y * cellSize + cellSize - barHeight - 1;
+            
+            // Background
+            ctx.fillStyle = '#333';
+            ctx.fillRect(x, y, barWidth, barHeight);
+            
+            // Energy bar
+            const energyPercent = obj.energy / obj.energyCapacity;
+            ctx.fillStyle = '#FFEB3B';
+            ctx.fillRect(x, y, barWidth * energyPercent, barHeight);
+        }
+    }
+
+    drawHealthBar(ctx, obj, cellSize) {
+        if (obj.hits !== undefined && obj.hitsMax !== undefined) {
+            const barWidth = cellSize - 2;
+            const barHeight = 2;
+            const x = obj.x * cellSize + 1;
+            const y = obj.y * cellSize + cellSize - barHeight - 1;
+            
+            // Background
+            ctx.fillStyle = '#333';
+            ctx.fillRect(x, y, barWidth, barHeight);
+            
+            // Health bar
+            const healthPercent = obj.hits / obj.hitsMax;
+            ctx.fillStyle = healthPercent > 0.5 ? '#4CAF50' : '#F44336';
+            ctx.fillRect(x, y, barWidth * healthPercent, barHeight);
+        }
+    }
+
+    drawGrid(ctx, cellSize) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 0.5;
+        
+        // Vertical lines
+        for (let x = 0; x <= 50; x++) {
+            ctx.beginPath();
+            ctx.moveTo(x * cellSize, 0);
+            ctx.lineTo(x * cellSize, 50 * cellSize);
+            ctx.stroke();
+        }
+        
+        // Horizontal lines
+        for (let y = 0; y <= 50; y++) {
+            ctx.beginPath();
+            ctx.moveTo(0, y * cellSize);
+            ctx.lineTo(50 * cellSize, y * cellSize);
+            ctx.stroke();
+        }
+    }
+
+    handleRoomMapClick(e) {
+        if (!this.roomVisualization.roomData) return;
+        
+        const rect = this.roomVisualization.canvas.getBoundingClientRect();
+        const x = Math.floor((e.clientX - rect.left) / 10);
+        const y = Math.floor((e.clientY - rect.top) / 10);
+        
+        // Find object at clicked position
+        const clickedObject = this.roomVisualization.roomData.objects.find(obj => 
+            obj.x === x && obj.y === y
+        );
+        
+        if (clickedObject) {
+            this.showObjectDetails(clickedObject, x, y);
+        }
+    }
+
+    showObjectDetails(obj, x, y) {
+        const details = document.getElementById('roomDetails');
+        if (!details) return;
+        
+        let html = `<h4>Objekt bei (${x}, ${y})</h4>`;
+        html += `<p><strong>Typ:</strong> ${obj.type}</p>`;
+        
+        if (obj.energy !== undefined) {
+            html += `<p><strong>Energie:</strong> ${obj.energy}/${obj.energyCapacity}</p>`;
+        }
+        
+        if (obj.hits !== undefined) {
+            html += `<p><strong>Lebenspunkte:</strong> ${obj.hits}/${obj.hitsMax}</p>`;
+        }
+        
+        if (obj.level !== undefined) {
+            html += `<p><strong>Level:</strong> ${obj.level}</p>`;
+        }
+        
+        if (obj.progress !== undefined) {
+            html += `<p><strong>Fortschritt:</strong> ${obj.progress}/${obj.progressTotal}</p>`;
+        }
+        
+        details.innerHTML = html;
+    }
+
+    updateRoomInfo() {
+        if (!this.roomVisualization.roomData) return;
+        
+        const roomTitle = document.getElementById('roomTitle');
+        const roomDetails = document.getElementById('roomDetails');
+        
+        if (roomTitle) {
+            roomTitle.textContent = `Raum ${this.roomVisualization.roomData.name}`;
+        }
+        
+        if (roomDetails) {
+            const objects = this.roomVisualization.roomData.objects;
+            const stats = this.calculateRoomStats(objects);
+            
+            let html = `
+                <p><strong>Strukturen:</strong> ${stats.structures}</p>
+                <p><strong>Creeps:</strong> ${stats.creeps}</p>
+                <p><strong>Energie:</strong> ${stats.energy}/${stats.energyCapacity}</p>
+                <p><strong>Spawns:</strong> ${stats.spawns}</p>
+                <p><strong>Extensions:</strong> ${stats.extensions}</p>
+                <p><strong>Türme:</strong> ${stats.towers}</p>
+                <p><strong>Baustellen:</strong> ${stats.constructionSites}</p>
+            `;
+            
+            roomDetails.innerHTML = html;
+        }
+    }
+
+    calculateRoomStats(objects) {
+        const stats = {
+            structures: 0,
+            creeps: 0,
+            energy: 0,
+            energyCapacity: 0,
+            spawns: 0,
+            extensions: 0,
+            towers: 0,
+            constructionSites: 0
+        };
+        
+        objects.forEach(obj => {
+            if (obj.type === 'creep') {
+                stats.creeps++;
+            } else if (obj.type === 'constructionSite') {
+                stats.constructionSites++;
+            } else {
+                stats.structures++;
+                
+                if (obj.energy !== undefined) {
+                    stats.energy += obj.energy;
+                    stats.energyCapacity += obj.energyCapacity;
+                }
+                
+                switch (obj.type) {
+                    case 'spawn': stats.spawns++; break;
+                    case 'extension': stats.extensions++; break;
+                    case 'tower': stats.towers++; break;
+                }
+            }
+        });
+        
+        return stats;
+    }
+
+    async refreshRoomData() {
+        if (this.roomVisualization.selectedRoom) {
+            await this.selectRoom(this.roomVisualization.selectedRoom);
+        }
+    }
+
+    // Multi-Room Management Methods
+    initMultiRoomManagement() {
+        this.initRoomComparisonTable();
+        this.initRoomPerformanceCharts();
+    }
+
+    initRoomComparisonTable() {
+        // Table will be updated when room data is available
+    }
+
+    initRoomPerformanceCharts() {
+        const roomEnergyCanvas = document.getElementById('roomEnergyChart');
+        const roomCreepsCanvas = document.getElementById('roomCreepsChart');
+        
+        if (roomEnergyCanvas) {
+            const ctx = roomEnergyCanvas.getContext('2d');
+            this.charts.roomEnergy = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Energie',
+                        data: [],
+                        backgroundColor: 'rgba(0, 255, 136, 0.6)',
+                        borderColor: '#00ff88',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#00ff88' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#00ff88' },
+                            grid: { color: '#333333' }
+                        },
+                        y: {
+                            ticks: { color: '#00ff88' },
+                            grid: { color: '#333333' }
+                        }
+                    }
+                }
+            });
+        }
+        
+        if (roomCreepsCanvas) {
+            const ctx = roomCreepsCanvas.getContext('2d');
+            this.charts.roomCreeps = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Creeps',
+                        data: [],
+                        backgroundColor: 'rgba(255, 152, 0, 0.6)',
+                        borderColor: '#FF9800',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#00ff88' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#00ff88' },
+                            grid: { color: '#333333' }
+                        },
+                        y: {
+                            ticks: { color: '#00ff88' },
+                            grid: { color: '#333333' }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    updateRoomSelector(rooms) {
+        const roomSelect = document.getElementById('roomSelect');
+        if (!roomSelect) return;
+        
+        // Clear existing options except the first one
+        roomSelect.innerHTML = '<option value="">Raum wählen...</option>';
+        
+        // Add room options
+        rooms.forEach(roomName => {
+            const option = document.createElement('option');
+            option.value = roomName;
+            option.textContent = roomName;
+            roomSelect.appendChild(option);
+        });
+    }
+
+    updateRoomComparison(roomsData) {
+        const tbody = document.getElementById('roomComparisonBody');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '';
+        
+        roomsData.forEach(room => {
+            const row = document.createElement('tr');
+            
+            const efficiency = this.calculateRoomEfficiency(room);
+            const status = this.getRoomStatus(room);
+            
+            row.innerHTML = `
+                <td>${room.name}</td>
+                <td>${room.level || 0}</td>
+                <td>${room.energy || 0}/${room.energyCapacity || 0}</td>
+                <td>${room.creepCount || 0}</td>
+                <td>${room.structureCount || 0}</td>
+                <td><span class="efficiency-badge efficiency-${efficiency.class}">${efficiency.value}%</span></td>
+                <td><span class="status-badge status-${status.class}">${status.text}</span></td>
+            `;
+            
+            tbody.appendChild(row);
+        });
+    }
+
+    calculateRoomEfficiency(room) {
+        // Simple efficiency calculation based on energy ratio and creep activity
+        let efficiency = 0;
+        
+        if (room.energyCapacity > 0) {
+            efficiency = (room.energy / room.energyCapacity) * 100;
+        }
+        
+        let efficiencyClass = 'low';
+        if (efficiency > 70) efficiencyClass = 'high';
+        else if (efficiency > 40) efficiencyClass = 'medium';
+        
+        return {
+            value: Math.round(efficiency),
+            class: efficiencyClass
+        };
+    }
+
+    getRoomStatus(room) {
+        if (room.creepCount === 0) {
+            return { text: 'Inaktiv', class: 'danger' };
+        } else if (room.energy < room.energyCapacity * 0.3) {
+            return { text: 'Niedrige Energie', class: 'warning' };
+        } else {
+            return { text: 'Aktiv', class: 'active' };
+        }
+    }
+
+    updateRoomPerformanceCharts(roomsData) {
+        if (this.charts.roomEnergy) {
+            const labels = roomsData.map(room => room.name);
+            const energyData = roomsData.map(room => room.energy || 0);
+            
+            this.charts.roomEnergy.data.labels = labels;
+            this.charts.roomEnergy.data.datasets[0].data = energyData;
+            this.charts.roomEnergy.update('none');
+        }
+        
+        if (this.charts.roomCreeps) {
+            const labels = roomsData.map(room => room.name);
+            const creepsData = roomsData.map(room => room.creepCount || 0);
+            
+            this.charts.roomCreeps.data.labels = labels;
+            this.charts.roomCreeps.data.datasets[0].data = creepsData;
+            this.charts.roomCreeps.update('none');
+        }
+    }
+
+    async updateRoomManagement() {
+        try {
+            const overview = await this.api.getOverview();
+            const roomsData = [];
+            
+            if (overview && overview.rooms) {
+                for (const [roomName, roomData] of Object.entries(overview.rooms)) {
+                    const processedRoom = {
+                        name: roomName,
+                        level: roomData.level || 0,
+                        energy: 0,
+                        energyCapacity: 0,
+                        creepCount: 0,
+                        structureCount: 0
+                    };
+                    
+                    // Get detailed room data
+                    try {
+                        const roomObjects = await this.api.getRoomObjects(roomName);
+                        const stats = this.calculateRoomStats(roomObjects);
+                        
+                        processedRoom.energy = stats.energy;
+                        processedRoom.energyCapacity = stats.energyCapacity;
+                        processedRoom.creepCount = stats.creeps;
+                        processedRoom.structureCount = stats.structures;
+                        
+                    } catch (error) {
+                        console.warn(`Could not get detailed data for room ${roomName}:`, error);
+                    }
+                    
+                    roomsData.push(processedRoom);
+                }
+            }
+            
+            // Update room selector
+            this.updateRoomSelector(roomsData.map(room => room.name));
+            
+            // Update room comparison table
+            this.updateRoomComparison(roomsData);
+            
+            // Update room performance charts
+            this.updateRoomPerformanceCharts(roomsData);
+            
+            // Store room data for future use
+            this.roomsData.clear();
+            roomsData.forEach(room => {
+                this.roomsData.set(room.name, room);
+            });
+            
+        } catch (error) {
+            console.error('Error updating room management:', error);
+            this.addConsoleMessage('error', `Fehler beim Aktualisieren der Raum-Verwaltung: ${error.message}`);
         }
     }
 }
