@@ -30,16 +30,21 @@ class ScreepsDashboard {
             maxEntries: 100
         };
         
-        this.init();
+        // Don't call init() automatically - it will be called manually as async
     }
 
-    init() {
+    async init() {
         this.setupEventListeners();
         this.loadConfig();
         this.loadFromLocalStorage(); // Load historical data
         this.initCharts();
         this.initRoomVisualization();
         this.initMultiRoomManagement();
+        
+        // Check for API token linking after Firebase is ready
+        setTimeout(async () => {
+            await this.checkAndPromptApiTokenLink();
+        }, 2000);
         
         if (this.api.getToken()) {
             this.startUpdating();
@@ -57,11 +62,18 @@ class ScreepsDashboard {
                 this.testRoomVisualization();
             }, 3000);
         } else {
-            setTimeout(() => {
-                if (typeof openConfigModal === 'function') {
-                    openConfigModal();
+            // Try to load API token from account first
+            setTimeout(async () => {
+                const loaded = await this.loadApiTokenFromAccount();
+                if (!loaded) {
+                    if (typeof openConfigModal === 'function') {
+                        openConfigModal();
+                    }
+                    this.addConsoleMessage('info', 'Please configure your API token to begin');
+                } else {
+                    // Start updating if token was loaded from account
+                    this.startUpdating();
                 }
-                this.addConsoleMessage('info', 'Please configure your API token to begin');
             }, 1000);
         }
     }
@@ -1724,6 +1736,96 @@ class ScreepsDashboard {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    }
+
+    async checkAndPromptApiTokenLink() {
+        // Check if user is logged in with Firebase and has no API token saved
+        if (window.firebaseManager && window.firebaseManager.user) {
+            const savedApiKey = await window.firebaseManager.getUserApiKey();
+            const localApiKey = localStorage.getItem('screepsApiToken');
+            
+            // If user has local API token but no saved API token in Firebase, prompt to link
+            if (localApiKey && !savedApiKey) {
+                this.showApiTokenLinkPrompt(localApiKey);
+            } else if (savedApiKey && !localApiKey) {
+                // If user has saved API token but no local token, load it
+                localStorage.setItem('screepsApiToken', savedApiKey);
+                this.api.setToken(savedApiKey);
+                this.addConsoleMessage('success', 'API token loaded from your account');
+            }
+        }
+    }
+
+    showApiTokenLinkPrompt(apiToken) {
+        const modal = document.createElement('div');
+        modal.className = 'config-modal show';
+        modal.style.zIndex = '10000';
+        
+        modal.innerHTML = `
+            <div class="config-content">
+                <h2><i class="fas fa-link"></i> Link API Token to Account</h2>
+                <p style="color: #ccc; margin-bottom: 20px;">
+                    Would you like to save your Screeps API token to your account? 
+                    This way you won't need to enter it again when logging in from other devices.
+                </p>
+                <div style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); border-radius: 5px; padding: 15px; margin-bottom: 20px;">
+                    <p style="color: #00ff88; margin: 0; font-size: 0.9rem;">
+                        <i class="fas fa-shield-alt"></i> Your API token will be securely stored in your Firebase account and encrypted.
+                    </p>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="this.closest('.config-modal').remove()">
+                        <i class="fas fa-times"></i> Not now
+                    </button>
+                    <button type="button" class="btn" onclick="window.dashboard.linkApiTokenToAccount('${apiToken}', this.closest('.config-modal'))">
+                        <i class="fas fa-save"></i> Save to Account
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+
+    async linkApiTokenToAccount(apiToken, modal) {
+        try {
+            if (!window.firebaseManager || !window.firebaseManager.user) {
+                throw new Error('Not logged in');
+            }
+            
+            await window.firebaseManager.saveUserApiKey(apiToken);
+            this.addConsoleMessage('success', 'API token successfully linked to your account!');
+            
+            // Remove modal
+            if (modal) {
+                modal.remove();
+            }
+            
+        } catch (error) {
+            console.error('Failed to link API token:', error);
+            this.addConsoleMessage('error', `Failed to link API token: ${error.message}`);
+        }
+    }
+
+    async loadApiTokenFromAccount() {
+        try {
+            if (!window.firebaseManager || !window.firebaseManager.user) {
+                return false;
+            }
+            
+            const savedApiKey = await window.firebaseManager.getUserApiKey();
+            if (savedApiKey) {
+                localStorage.setItem('screepsApiToken', savedApiKey);
+                this.api.setToken(savedApiKey);
+                this.addConsoleMessage('success', 'API token loaded from your account');
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error('Failed to load API token from account:', error);
+            return false;
+        }
     }
 }
 

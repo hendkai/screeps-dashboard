@@ -976,7 +976,7 @@
         }
 
         // Initialize dashboard when page loads
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             // Prevent multiple initializations
             if (isInitialized || window.dashboard) {
                 console.warn('Dashboard already initialized');
@@ -986,6 +986,7 @@
             try {
                 console.log('Initializing dashboard...');
                 window.dashboard = new ScreepsDashboard();
+                await window.dashboard.init(); // Call async init
                 isInitialized = true;
                 console.log('Dashboard initialized successfully');
                 
