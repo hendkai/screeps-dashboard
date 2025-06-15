@@ -78,30 +78,95 @@ class ScreepsAPI {
         return await this.request("auth/me");
     }
 
+    async getMemory() {
+        try {
+            console.log('Fetching memory data...');
+            const memory = await this.request("user/memory");
+            console.log('Memory response:', memory);
+            return memory;
+        } catch (error) {
+            console.warn('Failed to get memory:', error);
+            throw error;
+        }
+    }
+
     async getGameTime() {
         return await this.request("game/time");
     }
 
     async getUserCreeps() {
         try {
-            // Versuche verschiedene Endpunkte für Creep-Daten
-            const creepsData = await this.request("user/creeps").catch(() => null);
-            if (creepsData) {
-                console.log('Creeps from user/creeps:', creepsData);
-                return creepsData;
+            console.log('Trying to get creeps data...');
+            
+            // Versuche verschiedene bekannte Screeps API-Endpunkte
+            const endpoints = [
+                'user/memory',
+                'user/creeps', 
+                'game/user/creeps',
+                'user/overview'
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    console.log(`Trying endpoint: ${endpoint}`);
+                    const data = await this.request(endpoint);
+                    console.log(`Response from ${endpoint}:`, data);
+                    
+                    if (endpoint === 'user/memory' && data && data.data && data.data.creeps) {
+                        const creepNames = Object.keys(data.data.creeps);
+                        console.log(`Found ${creepNames.length} creeps in memory:`, creepNames);
+                        return { creeps: creepNames, source: 'memory', count: creepNames.length };
+                    }
+                    
+                    if (endpoint === 'user/creeps' && data) {
+                        if (Array.isArray(data)) {
+                            console.log(`Found ${data.length} creeps in user/creeps array`);
+                            return { creeps: data, source: 'api', count: data.length };
+                        } else if (data.creeps && Array.isArray(data.creeps)) {
+                            console.log(`Found ${data.creeps.length} creeps in user/creeps.creeps`);
+                            return { creeps: data.creeps, source: 'api', count: data.creeps.length };
+                        } else if (typeof data === 'object') {
+                            const creepNames = Object.keys(data);
+                            console.log(`Found ${creepNames.length} creeps in user/creeps object:`, creepNames);
+                            return { creeps: creepNames, source: 'api', count: creepNames.length };
+                        }
+                    }
+                    
+                    if (endpoint === 'user/overview' && data && data.shards) {
+                        // Schaue nach Creep-Informationen in Overview
+                        let totalCreeps = 0;
+                        Object.keys(data.shards).forEach(shardName => {
+                            const shard = data.shards[shardName];
+                            if (shard.stats) {
+                                Object.keys(shard.stats).forEach(roomName => {
+                                    const roomStats = shard.stats[roomName];
+                                    if (roomStats && Array.isArray(roomStats)) {
+                                        const latestStats = roomStats[roomStats.length - 1];
+                                        if (latestStats && latestStats.value && latestStats.value.creeps) {
+                                            totalCreeps += latestStats.value.creeps;
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                        
+                        if (totalCreeps > 0) {
+                            console.log(`Found ${totalCreeps} creeps in overview stats`);
+                            return { creeps: [], source: 'overview', count: totalCreeps };
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.warn(`Endpoint ${endpoint} failed:`, error);
+                    continue;
+                }
             }
             
-            // Fallback: Versuche game/creeps
-            const gameCreeps = await this.request("game/creeps").catch(() => null);
-            if (gameCreeps) {
-                console.log('Creeps from game/creeps:', gameCreeps);
-                return gameCreeps;
-            }
-            
-            return null;
+            console.log('No creeps found in any endpoint');
+            return { creeps: [], source: 'none', count: 0 };
         } catch (error) {
             console.warn('Failed to get creeps data:', error);
-            return null;
+            return { creeps: [], source: 'error', count: 0 };
         }
     }
 
@@ -119,26 +184,38 @@ class ScreepsAPI {
         }
     }
 
-    async getMemory(path = "") {
-        const endpoint = path ? `user/memory?path=${encodeURIComponent(path)}` : "user/memory";
-        return await this.request(endpoint);
-    }
+
 
     async getRoom(roomName) {
         try {
-            // Versuche verschiedene Endpunkte für Raum-Daten
-            const roomObjects = await this.request(`game/room-objects?room=${roomName}`).catch(() => null);
-            const roomTerrain = await this.request(`game/room-terrain?room=${roomName}`).catch(() => null);
-            const roomStatus = await this.request(`game/room-status?room=${roomName}`).catch(() => null);
+            console.log(`Trying to get room data for: ${roomName}`);
             
-            return {
-                objects: roomObjects?.objects || [],
-                terrain: roomTerrain,
-                status: roomStatus
-            };
+            // Versuche den korrekten Screeps API Endpunkt
+            const roomData = await this.request(`game/room-objects?room=${roomName}&encoded=false`).catch(e => {
+                console.warn(`game/room-objects failed for ${roomName}:`, e);
+                return null;
+            });
+            
+            if (roomData) {
+                console.log(`Room data for ${roomName}:`, roomData);
+                return roomData;
+            }
+            
+            // Fallback: Versuche ohne encoded Parameter
+            const roomDataSimple = await this.request(`game/room-objects?room=${roomName}`).catch(e => {
+                console.warn(`Simple room-objects failed for ${roomName}:`, e);
+                return null;
+            });
+            
+            if (roomDataSimple) {
+                console.log(`Simple room data for ${roomName}:`, roomDataSimple);
+                return roomDataSimple;
+            }
+            
+            return { objects: [] };
         } catch (error) {
             console.warn(`Failed to get room data for ${roomName}:`, error);
-            return { objects: [], terrain: null, status: null };
+            return { objects: [] };
         }
     }
 
@@ -146,38 +223,42 @@ class ScreepsAPI {
         try {
             console.log('Fetching user rooms...');
             
-            // Versuche verschiedene Endpunkte für Raum-Informationen
-            const [userInfo, roomsResponse, worldData] = await Promise.all([
-                this.getUserInfo(),
-                this.request("user/rooms").catch(e => { console.warn('user/rooms failed:', e); return null; }),
-                this.request("game/world-size").catch(e => { console.warn('world-size failed:', e); return null; })
-            ]);
-            
-            console.log('User info for rooms:', userInfo);
-            console.log('Rooms response:', roomsResponse);
+            // Hole Benutzer-Informationen
+            const userInfo = await this.getUserInfo();
+            console.log('Complete user info:', userInfo);
             
             const rooms = [];
             let roomNames = [];
             
-            // Sammle Raumnamen aus verschiedenen Quellen
-            if (roomsResponse && roomsResponse.rooms) {
-                roomNames = Object.keys(roomsResponse.rooms);
-                console.log('Room names from user/rooms:', roomNames);
-            } else if (userInfo.rooms && Array.isArray(userInfo.rooms)) {
+            // Extrahiere Raumnamen aus userInfo - verschiedene mögliche Strukturen
+            if (userInfo.rooms && Array.isArray(userInfo.rooms)) {
                 roomNames = userInfo.rooms;
-                console.log('Room names from userInfo.rooms:', roomNames);
-            } else {
-                // Fallback: Versuche aus anderen Feldern zu extrahieren
-                console.log('Searching for room names in userInfo...');
-                if (userInfo.shards) {
-                    Object.keys(userInfo.shards).forEach(shardName => {
-                        const shard = userInfo.shards[shardName];
-                        if (shard.rooms && Array.isArray(shard.rooms)) {
-                            roomNames = roomNames.concat(shard.rooms);
-                        }
-                    });
-                }
-                console.log('Room names from shards:', roomNames);
+                console.log('Room names from userInfo.rooms array:', roomNames);
+            } else if (userInfo.rooms && typeof userInfo.rooms === 'object') {
+                roomNames = Object.keys(userInfo.rooms);
+                console.log('Room names from userInfo.rooms object:', roomNames);
+            } else if (userInfo.shards) {
+                // Screeps verwendet oft shard-basierte Struktur
+                Object.keys(userInfo.shards).forEach(shardName => {
+                    const shard = userInfo.shards[shardName];
+                    console.log(`Checking shard ${shardName}:`, shard);
+                    if (shard.rooms && Array.isArray(shard.rooms)) {
+                        roomNames = roomNames.concat(shard.rooms);
+                        console.log(`Found rooms in shard ${shardName}:`, shard.rooms);
+                    }
+                });
+            }
+            
+            // Fallback: Schaue nach anderen möglichen Feldern
+            if (roomNames.length === 0) {
+                console.log('No rooms found in standard fields, checking all userInfo fields...');
+                Object.keys(userInfo).forEach(key => {
+                    const value = userInfo[key];
+                    if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string' && value[0].match(/^[WE]\d+[NS]\d+$/)) {
+                        console.log(`Found potential room names in ${key}:`, value);
+                        roomNames = roomNames.concat(value);
+                    }
+                });
             }
             
             // Hole Daten für jeden Raum
@@ -185,12 +266,11 @@ class ScreepsAPI {
                 try {
                     console.log(`Fetching data for room: ${roomName}`);
                     const roomData = await this.getRoom(roomName);
-                    const roomInfo = roomsResponse?.rooms?.[roomName] || null;
                     
                     rooms.push({
                         name: roomName,
                         data: roomData,
-                        info: roomInfo
+                        info: null
                     });
                     console.log(`Successfully fetched data for room: ${roomName}`, roomData);
                 } catch (error) {
@@ -199,7 +279,7 @@ class ScreepsAPI {
                     rooms.push({
                         name: roomName,
                         data: { objects: [] },
-                        info: roomsResponse?.rooms?.[roomName] || null
+                        info: null
                     });
                 }
             }
@@ -401,38 +481,25 @@ class ScreepsAPI {
                 }
                         });
             
-            // Alternative Creep-Zählung aus direkten API-Endpunkten
-            if (userCreeps) {
-                let apiCreepCount = 0;
-                if (Array.isArray(userCreeps)) {
-                    apiCreepCount = userCreeps.length;
-                } else if (userCreeps.creeps && Array.isArray(userCreeps.creeps)) {
-                    apiCreepCount = userCreeps.creeps.length;
-                } else if (typeof userCreeps === 'object') {
-                    apiCreepCount = Object.keys(userCreeps).length;
-                }
+            // Verbesserte Creep-Zählung mit der neuen getUserCreeps Methode
+            if (userCreeps && userCreeps.count !== undefined) {
+                console.log(`Creep data from ${userCreeps.source}: ${userCreeps.count} creeps`);
                 
-                console.log(`API Creep count: ${apiCreepCount}, Room-based count: ${totalCreeps}`);
-                
-                // Verwende den höheren Wert als Fallback
-                if (apiCreepCount > totalCreeps) {
-                    console.log(`Using API creep count (${apiCreepCount}) instead of room-based count (${totalCreeps})`);
-                    totalCreeps = apiCreepCount;
-                }
-            }
-            
-            // Fallback: Versuche Creeps aus Memory zu lesen
-            if (totalCreeps === 0) {
-                try {
-                    const memoryData = await this.getMemory().catch(() => null);
-                    if (memoryData && memoryData.data && memoryData.data.creeps) {
-                        const memoryCreeps = Object.keys(memoryData.data.creeps);
-                        console.log(`Found ${memoryCreeps.length} creeps in memory:`, memoryCreeps);
-                        totalCreeps = memoryCreeps.length;
+                if (userCreeps.source === 'memory' || userCreeps.source === 'overview') {
+                    // Memory und Overview haben Priorität über Raum-basierte Zählung
+                    totalCreeps = userCreeps.count;
+                    console.log(`Using ${userCreeps.source} creep count: ${totalCreeps}`);
+                } else if (userCreeps.source === 'api') {
+                    // API-Zählung als Fallback
+                    if (userCreeps.count > totalCreeps) {
+                        console.log(`Using API creep count (${userCreeps.count}) instead of room-based count (${totalCreeps})`);
+                        totalCreeps = userCreeps.count;
                     }
-                } catch (error) {
-                    console.warn('Failed to get creeps from memory:', error);
+                } else if (userCreeps.source === 'none' || userCreeps.source === 'error') {
+                    console.log(`No reliable creep data found, using room-based count: ${totalCreeps}`);
                 }
+            } else {
+                console.log(`Using room-based creep count: ${totalCreeps}`);
             }
             
             // Alternative Struktur-Zählung aus direkten API-Endpunkten
