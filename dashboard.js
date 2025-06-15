@@ -339,7 +339,13 @@ class ScreepsDashboard {
             constructionValue: document.getElementById('constructionValue'),
             mineralsValue: document.getElementById('mineralsValue'),
             avgRoomLevel: document.getElementById('avgRoomLevel'),
-            energyHarvested: document.getElementById('energyHarvested')
+            energyHarvested: document.getElementById('energyHarvested'),
+            storageValue: document.getElementById('storageValue'),
+            terminalsValue: document.getElementById('terminalsValue'),
+            labsValue: document.getElementById('labsValue'),
+            totalStructures: document.getElementById('totalStructures'),
+            subscriptionTokens: document.getElementById('subscriptionTokens'),
+            powerExperimentations: document.getElementById('powerExperimentations')
         };
 
         // Basis-Statistiken
@@ -380,6 +386,24 @@ class ScreepsDashboard {
         }
         if (elements.energyHarvested) {
             elements.energyHarvested.textContent = (stats.energyHarvested || 0).toLocaleString();
+        }
+        if (elements.storageValue) {
+            elements.storageValue.textContent = stats.storage || 0;
+        }
+        if (elements.terminalsValue) {
+            elements.terminalsValue.textContent = stats.terminals || 0;
+        }
+        if (elements.labsValue) {
+            elements.labsValue.textContent = stats.labs || 0;
+        }
+        if (elements.totalStructures) {
+            elements.totalStructures.textContent = stats.totalStructures || 0;
+        }
+        if (elements.subscriptionTokens) {
+            elements.subscriptionTokens.textContent = stats.subscriptionTokens || 0;
+        }
+        if (elements.powerExperimentations) {
+            elements.powerExperimentations.textContent = stats.powerExperimentations || 0;
         }
     }
 
@@ -539,8 +563,17 @@ class ScreepsDashboard {
             const progressPercent = room.progressTotal > 0 ? 
                 Math.round((room.progress / room.progressTotal) * 100) : 0;
             
+            let statusInfo = '';
+            if (room.ticksToDowngrade > 0) {
+                const hoursToDowngrade = Math.round(room.ticksToDowngrade / 60 / 60 * 100) / 100;
+                statusInfo += ` | Downgrade in ${hoursToDowngrade}h`;
+            }
+            if (room.upgradeBlocked > 0) {
+                statusInfo += ` | Upgrade blockiert für ${room.upgradeBlocked} Ticks`;
+            }
+            
             li.innerHTML = `
-                <span>${room.room} (Level ${room.level})</span>
+                <span>${room.room} (Level ${room.level})${statusInfo}</span>
                 <span>${progressPercent}% (${room.progress.toLocaleString()}/${room.progressTotal.toLocaleString()})</span>
             `;
             controllersList.appendChild(li);
@@ -560,7 +593,10 @@ class ScreepsDashboard {
             { label: 'Energie für Kontrolle', value: (stats.energyControl || 0).toLocaleString(), icon: 'fas fa-crown' },
             { label: 'Energie für Creeps', value: (stats.energyCreeps || 0).toLocaleString(), icon: 'fas fa-robot' },
             { label: 'Energie Effizienz', value: `${stats.energyPercentage || 0}%`, icon: 'fas fa-percentage' },
-            { label: 'CPU Effizienz', value: `${stats.cpuPercentage || 0}%`, icon: 'fas fa-microchip' }
+            { label: 'CPU Effizienz', value: `${stats.cpuPercentage || 0}%`, icon: 'fas fa-microchip' },
+            { label: 'GCL Level', value: stats.gcl || 0, icon: 'fas fa-star' },
+            { label: 'Strukturen gesamt', value: stats.totalStructures || 0, icon: 'fas fa-building' },
+            { label: 'Durchschnitt Raum Level', value: stats.avgRoomLevel || 0, icon: 'fas fa-level-up-alt' }
         ];
         
         statsData.forEach(stat => {

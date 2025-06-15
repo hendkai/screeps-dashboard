@@ -88,24 +88,56 @@ class ScreepsAPI {
     }
 
     async getUserRooms() {
-        const userInfo = await this.getUserInfo();
-        const rooms = [];
-        
-        if (userInfo.rooms) {
-            for (const roomName of userInfo.rooms) {
-                try {
-                    const roomData = await this.getRoom(roomName);
-                    rooms.push({
-                        name: roomName,
-                        data: roomData
-                    });
-                } catch (error) {
-                    console.warn(`Failed to get room data for ${roomName}:`, error);
+        try {
+            // Versuche zuerst die user/rooms API
+            const roomsResponse = await this.request("user/rooms").catch(() => null);
+            if (roomsResponse && roomsResponse.rooms) {
+                const rooms = [];
+                for (const roomName of Object.keys(roomsResponse.rooms)) {
+                    try {
+                        const roomData = await this.getRoom(roomName);
+                        rooms.push({
+                            name: roomName,
+                            data: roomData,
+                            info: roomsResponse.rooms[roomName]
+                        });
+                    } catch (error) {
+                        console.warn(`Failed to get room data for ${roomName}:`, error);
+                        // Füge Raum trotzdem hinzu, auch ohne detaillierte Daten
+                        rooms.push({
+                            name: roomName,
+                            data: null,
+                            info: roomsResponse.rooms[roomName]
+                        });
+                    }
+                }
+                return rooms;
+            }
+
+            // Fallback: Verwende userInfo
+            const userInfo = await this.getUserInfo();
+            const rooms = [];
+            
+            if (userInfo.rooms) {
+                for (const roomName of userInfo.rooms) {
+                    try {
+                        const roomData = await this.getRoom(roomName);
+                        rooms.push({
+                            name: roomName,
+                            data: roomData,
+                            info: null
+                        });
+                    } catch (error) {
+                        console.warn(`Failed to get room data for ${roomName}:`, error);
+                    }
                 }
             }
+            
+            return rooms;
+        } catch (error) {
+            console.error('Failed to get user rooms:', error);
+            return [];
         }
-        
-        return rooms;
     }
 
     async getConsole() {
@@ -138,13 +170,42 @@ class ScreepsAPI {
         return await this.request("game/world-status");
     }
 
+    async getUserStats() {
+        return await this.request("user/stats");
+    }
+
+    async getUserBadges() {
+        return await this.request("user/badge");
+    }
+
+    async getMarketOrders() {
+        return await this.request("game/market/orders");
+    }
+
+    async getMarketHistory(resourceType) {
+        return await this.request(`game/market/history?resourceType=${resourceType}`);
+    }
+
+    async getUserMoney() {
+        return await this.request("user/money-history");
+    }
+
     async getGameStats() {
         try {
-            const [userInfo, rooms, overview] = await Promise.all([
+            console.log('Fetching game stats...');
+            
+            // Hole alle verfügbaren Daten parallel
+            const [userInfo, rooms, overview, userStats] = await Promise.all([
                 this.getUserInfo(),
                 this.getUserRooms(),
-                this.getOverview().catch(() => null) // Optional, falls nicht verfügbar
+                this.getOverview().catch(e => { console.warn('Overview API failed:', e); return null; }),
+                this.getUserStats().catch(e => { console.warn('User stats API failed:', e); return null; })
             ]);
+            
+            console.log('User info:', userInfo);
+            console.log('Rooms data:', rooms);
+            console.log('Overview data:', overview);
+            console.log('User stats:', userStats);
             
             let totalEnergy = 0;
             let totalEnergyCapacity = 0;
@@ -154,9 +215,14 @@ class ScreepsAPI {
             let totalTowers = 0;
             let totalConstructionSites = 0;
             let totalMinerals = 0;
+            let totalStorage = 0;
+            let totalTerminals = 0;
+            let totalLabs = 0;
             let roomControlLevels = [];
+            
+            // CPU-Daten aus verschiedenen Quellen
             let cpuUsed = userInfo.cpu || 0;
-            let cpuLimit = userInfo.cpuLimit || 20;
+            let cpuLimit = userInfo.cpuLimit || userInfo.cpuShard?.shard3 || 20;
 
             rooms.forEach(room => {
                 if (room.data && room.data.objects) {
@@ -171,28 +237,39 @@ class ScreepsAPI {
                     const extensions = objects.filter(obj => obj.type === "extension");
                     const towers = objects.filter(obj => obj.type === "tower");
                     const constructionSites = objects.filter(obj => obj.type === "constructionSite");
+                    const storage = objects.filter(obj => obj.type === "storage");
+                    const terminals = objects.filter(obj => obj.type === "terminal");
+                    const labs = objects.filter(obj => obj.type === "lab");
                     const controller = objects.find(obj => obj.type === "controller");
                     
                     totalSpawns += spawns.length;
                     totalExtensions += extensions.length;
                     totalTowers += towers.length;
                     totalConstructionSites += constructionSites.length;
+                    totalStorage += storage.length;
+                    totalTerminals += terminals.length;
+                    totalLabs += labs.length;
 
                     // Controller Level
-                    if (controller && controller.level) {
+                    if (controller) {
                         roomControlLevels.push({
                             room: room.name,
-                            level: controller.level,
+                            level: controller.level || 0,
                             progress: controller.progress || 0,
-                            progressTotal: controller.progressTotal || 0
+                            progressTotal: controller.progressTotal || 0,
+                            ticksToDowngrade: controller.ticksToDowngrade || 0,
+                            upgradeBlocked: controller.upgradeBlocked || 0
                         });
                     }
 
-                    // Energie berechnen
+                    // Energie aus verschiedenen Quellen berechnen
                     spawns.forEach(spawn => {
                         if (spawn.store) {
                             totalEnergy += spawn.store.energy || 0;
                             totalEnergyCapacity += spawn.storeCapacity || 300;
+                        } else if (spawn.energy !== undefined) {
+                            totalEnergy += spawn.energy || 0;
+                            totalEnergyCapacity += spawn.energyCapacity || 300;
                         }
                     });
 
@@ -200,6 +277,24 @@ class ScreepsAPI {
                         if (ext.store) {
                             totalEnergy += ext.store.energy || 0;
                             totalEnergyCapacity += ext.storeCapacity || 50;
+                        } else if (ext.energy !== undefined) {
+                            totalEnergy += ext.energy || 0;
+                            totalEnergyCapacity += ext.energyCapacity || 50;
+                        }
+                    });
+
+                    // Storage und Terminal Energie
+                    storage.forEach(store => {
+                        if (store.store && store.store.energy) {
+                            totalEnergy += store.store.energy;
+                            totalEnergyCapacity += store.storeCapacity || 1000000;
+                        }
+                    });
+
+                    terminals.forEach(terminal => {
+                        if (terminal.store && terminal.store.energy) {
+                            totalEnergy += terminal.store.energy;
+                            totalEnergyCapacity += terminal.storeCapacity || 300000;
                         }
                     });
 
@@ -221,7 +316,7 @@ class ScreepsAPI {
                 };
             }
 
-            return {
+            const result = {
                 // Basis-Statistiken
                 energy: totalEnergy,
                 energyCapacity: totalEnergyCapacity,
@@ -231,17 +326,25 @@ class ScreepsAPI {
                 rooms: rooms.length,
                 roomsData: rooms,
                 
-                // Erweiterte Statistiken
+                // Erweiterte Strukturen
                 spawns: totalSpawns,
                 extensions: totalExtensions,
                 towers: totalTowers,
                 constructionSites: totalConstructionSites,
                 minerals: totalMinerals,
+                storage: totalStorage,
+                terminals: totalTerminals,
+                labs: totalLabs,
                 roomControlLevels: roomControlLevels,
                 
-                // Benutzer-Info
+                // Benutzer-Info aus verschiedenen Quellen
                 gcl: userInfo.gcl || 0,
-                credits: userInfo.credits || 0,
+                credits: userInfo.credits || userInfo.money || 0,
+                subscriptionTokens: userInfo.subscriptionTokens || 0,
+                powerExperimentations: userInfo.powerExperimentations || 0,
+                
+                // Badge-Info
+                badge: userInfo.badge || {},
                 
                 // Overview-Statistiken
                 ...overviewStats,
@@ -250,8 +353,23 @@ class ScreepsAPI {
                 energyPercentage: totalEnergyCapacity > 0 ? Math.round((totalEnergy / totalEnergyCapacity) * 100) : 0,
                 cpuPercentage: cpuLimit > 0 ? Math.round((cpuUsed / cpuLimit) * 100) : 0,
                 avgRoomLevel: roomControlLevels.length > 0 ? 
-                    Math.round(roomControlLevels.reduce((sum, room) => sum + room.level, 0) / roomControlLevels.length * 10) / 10 : 0
+                    Math.round(roomControlLevels.reduce((sum, room) => sum + room.level, 0) / roomControlLevels.length * 10) / 10 : 0,
+                
+                // Zusätzliche Metriken
+                totalStructures: totalSpawns + totalExtensions + totalTowers + totalStorage + totalTerminals + totalLabs,
+                energyEfficiency: totalEnergyCapacity > 0 ? Math.round((totalEnergy / totalEnergyCapacity) * 100) : 0,
+                
+                // Debug-Info
+                debug: {
+                    userInfoKeys: Object.keys(userInfo),
+                    roomCount: rooms.length,
+                    hasOverview: !!overview,
+                    hasUserStats: !!userStats
+                }
             };
+            
+            console.log('Final game stats:', result);
+            return result;
         } catch (error) {
             console.error('Failed to get game stats:', error);
             throw error;
