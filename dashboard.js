@@ -1741,17 +1741,19 @@ class ScreepsDashboard {
     async checkAndPromptApiTokenLink() {
         // Check if user is logged in with Firebase and has no API token saved
         if (window.firebaseManager && window.firebaseManager.user) {
-            const savedApiKey = await window.firebaseManager.getUserApiKey();
             const localApiKey = localStorage.getItem('screepsApiToken');
+            const hasEncryptedToken = localStorage.getItem('hasEncryptedApiToken');
             
-            // If user has local API token but no saved API token in Firebase, prompt to link
-            if (localApiKey && !savedApiKey) {
+            // If user has local API token but no encrypted token saved, prompt to link
+            if (localApiKey && !hasEncryptedToken) {
                 this.showApiTokenLinkPrompt(localApiKey);
-            } else if (savedApiKey && !localApiKey) {
-                // If user has saved API token but no local token, load it
-                localStorage.setItem('screepsApiToken', savedApiKey);
-                this.api.setToken(savedApiKey);
-                this.addConsoleMessage('success', 'API token loaded from your account');
+            } else if (hasEncryptedToken && !localApiKey) {
+                // If user has encrypted token but no local token, try to load it
+                const loaded = await this.loadSecureApiTokenFromAccount();
+                if (!loaded) {
+                    // If loading failed, remove the flag
+                    localStorage.removeItem('hasEncryptedApiToken');
+                }
             }
         }
     }
@@ -1763,38 +1765,80 @@ class ScreepsDashboard {
         
         modal.innerHTML = `
             <div class="config-content">
-                <h2><i class="fas fa-link"></i> Link API Token to Account</h2>
+                <h2><i class="fas fa-shield-alt"></i> Secure API Token Storage</h2>
                 <p style="color: #ccc; margin-bottom: 20px;">
-                    Would you like to save your Screeps API token to your account? 
-                    This way you won't need to enter it again when logging in from other devices.
+                    Would you like to securely save your Screeps API token to your account? 
+                    Your token will be encrypted with a master password that only you know.
                 </p>
                 <div style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); border-radius: 5px; padding: 15px; margin-bottom: 20px;">
-                    <p style="color: #00ff88; margin: 0; font-size: 0.9rem;">
-                        <i class="fas fa-shield-alt"></i> Your API token will be securely stored in your Firebase account and encrypted.
+                    <p style="color: #00ff88; margin: 0 0 10px 0; font-size: 0.9rem;">
+                        <i class="fas fa-lock"></i> <strong>Maximum Security:</strong>
                     </p>
+                    <ul style="color: #ccc; margin: 0; padding-left: 20px; font-size: 0.85rem;">
+                        <li>Your API token is encrypted with AES-256-GCM</li>
+                        <li>Only you can decrypt it with your master password</li>
+                        <li>Even admins cannot read your token</li>
+                        <li>Password is never stored or transmitted</li>
+                    </ul>
+                </div>
+                <div class="form-group">
+                    <label for="masterPassword">Master Password:</label>
+                    <input type="password" id="masterPassword" placeholder="Enter a secure master password" 
+                           style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); 
+                                  border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; 
+                                  color: white; font-size: 1rem;">
+                    <small style="color: #888; display: block; margin-top: 5px;">
+                        Choose a strong password you'll remember. This cannot be recovered if lost.
+                    </small>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn" onclick="this.closest('.config-modal').remove()">
                         <i class="fas fa-times"></i> Not now
                     </button>
-                    <button type="button" class="btn" onclick="window.dashboard.linkApiTokenToAccount('${apiToken}', this.closest('.config-modal'))">
-                        <i class="fas fa-save"></i> Save to Account
+                    <button type="button" class="btn" onclick="window.dashboard.linkSecureApiTokenToAccount('${apiToken}', this.closest('.config-modal'))">
+                        <i class="fas fa-save"></i> Save Securely
                     </button>
                 </div>
             </div>
         `;
         
         document.body.appendChild(modal);
+        
+        // Focus on password field
+        setTimeout(() => {
+            const passwordField = modal.querySelector('#masterPassword');
+            if (passwordField) passwordField.focus();
+        }, 100);
     }
 
-    async linkApiTokenToAccount(apiToken, modal) {
+    async linkSecureApiTokenToAccount(apiToken, modal) {
         try {
             if (!window.firebaseManager || !window.firebaseManager.user) {
                 throw new Error('Not logged in');
             }
             
-            await window.firebaseManager.saveUserApiKey(apiToken);
-            this.addConsoleMessage('success', 'API token successfully linked to your account!');
+            const masterPassword = modal.querySelector('#masterPassword').value;
+            if (!masterPassword) {
+                alert('Please enter a master password');
+                return;
+            }
+            
+            if (masterPassword.length < 8) {
+                alert('Master password must be at least 8 characters long');
+                return;
+            }
+            
+            // Show loading state
+            const saveButton = modal.querySelector('button[onclick*="linkSecureApiTokenToAccount"]');
+            const originalText = saveButton.innerHTML;
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Encrypting...';
+            saveButton.disabled = true;
+            
+            await window.firebaseManager.saveSecureApiKey(apiToken, masterPassword);
+            this.addConsoleMessage('success', 'API token securely encrypted and saved to your account!');
+            
+            // Store a flag that user has encrypted token
+            localStorage.setItem('hasEncryptedApiToken', 'true');
             
             // Remove modal
             if (modal) {
@@ -1802,8 +1846,103 @@ class ScreepsDashboard {
             }
             
         } catch (error) {
-            console.error('Failed to link API token:', error);
-            this.addConsoleMessage('error', `Failed to link API token: ${error.message}`);
+            console.error('Failed to link secure API token:', error);
+            this.addConsoleMessage('error', `Failed to save secure API token: ${error.message}`);
+            
+            // Restore button state
+            const saveButton = modal.querySelector('button[onclick*="linkSecureApiTokenToAccount"]');
+            if (saveButton) {
+                saveButton.innerHTML = '<i class="fas fa-save"></i> Save Securely';
+                saveButton.disabled = false;
+            }
+        }
+    }
+
+    async loadSecureApiTokenFromAccount() {
+        try {
+            if (!window.firebaseManager || !window.firebaseManager.user) {
+                return false;
+            }
+            
+            // Prompt for master password
+            const masterPassword = await this.promptForMasterPassword();
+            if (!masterPassword) {
+                return false;
+            }
+            
+            const savedApiKey = await window.firebaseManager.getSecureApiKey(masterPassword);
+            if (savedApiKey) {
+                localStorage.setItem('screepsApiToken', savedApiKey);
+                this.api.setToken(savedApiKey);
+                this.addConsoleMessage('success', 'Secure API token loaded from your account');
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error('Failed to load secure API token:', error);
+            this.addConsoleMessage('error', 'Failed to decrypt API token - wrong password?');
+            return false;
+        }
+    }
+
+    async promptForMasterPassword() {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.className = 'config-modal show';
+            modal.style.zIndex = '10000';
+            
+            modal.innerHTML = `
+                <div class="config-content">
+                    <h2><i class="fas fa-unlock"></i> Enter Master Password</h2>
+                    <p style="color: #ccc; margin-bottom: 20px;">
+                        Enter your master password to decrypt your API token.
+                    </p>
+                    <div class="form-group">
+                        <label for="unlockPassword">Master Password:</label>
+                        <input type="password" id="unlockPassword" placeholder="Enter your master password" 
+                               style="width: 100%; padding: 10px; background: rgba(255,255,255,0.1); 
+                                      border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; 
+                                      color: white; font-size: 1rem;">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn" onclick="this.closest('.config-modal').remove(); window.dashboard.resolveMasterPasswordPrompt(null);">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button type="button" class="btn" onclick="window.dashboard.resolveMasterPasswordPrompt(document.getElementById('unlockPassword').value); this.closest('.config-modal').remove();">
+                            <i class="fas fa-unlock"></i> Unlock
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Focus on password field
+            setTimeout(() => {
+                const passwordField = modal.querySelector('#unlockPassword');
+                if (passwordField) {
+                    passwordField.focus();
+                    // Allow Enter key to submit
+                    passwordField.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            const password = passwordField.value;
+                            modal.remove();
+                            resolve(password);
+                        }
+                    });
+                }
+            }, 100);
+            
+            // Store resolve function for button click
+            this.masterPasswordResolve = resolve;
+        });
+    }
+
+    resolveMasterPasswordPrompt(password) {
+        if (this.masterPasswordResolve) {
+            this.masterPasswordResolve(password);
+            this.masterPasswordResolve = null;
         }
     }
 
@@ -1813,6 +1952,13 @@ class ScreepsDashboard {
                 return false;
             }
             
+            // Check if user has encrypted token
+            const hasEncryptedToken = localStorage.getItem('hasEncryptedApiToken');
+            if (hasEncryptedToken) {
+                return await this.loadSecureApiTokenFromAccount();
+            }
+            
+            // Fallback: try to load unencrypted token (legacy)
             const savedApiKey = await window.firebaseManager.getUserApiKey();
             if (savedApiKey) {
                 localStorage.setItem('screepsApiToken', savedApiKey);

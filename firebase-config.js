@@ -110,40 +110,159 @@ class FirebaseManager {
         }
     }
 
-    async saveUserApiKey(apiKey) {
+    // Encryption utilities for API keys
+    async generateUserKey(password) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        return await crypto.subtle.importKey(
+            'raw',
+            hashBuffer,
+            { name: 'AES-GCM' },
+            false,
+            ['encrypt', 'decrypt']
+        );
+    }
+
+    async encryptApiKey(apiKey, userPassword) {
+        try {
+            const key = await this.generateUserKey(userPassword);
+            const encoder = new TextEncoder();
+            const data = encoder.encode(apiKey);
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            
+            const encryptedData = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                data
+            );
+            
+            // Combine IV and encrypted data
+            const combined = new Uint8Array(iv.length + encryptedData.byteLength);
+            combined.set(iv);
+            combined.set(new Uint8Array(encryptedData), iv.length);
+            
+            // Convert to base64 for storage
+            return btoa(String.fromCharCode(...combined));
+        } catch (error) {
+            console.error('Encryption failed:', error);
+            throw new Error('Failed to encrypt API key');
+        }
+    }
+
+    async decryptApiKey(encryptedApiKey, userPassword) {
+        try {
+            const key = await this.generateUserKey(userPassword);
+            
+            // Convert from base64
+            const combined = new Uint8Array(
+                atob(encryptedApiKey).split('').map(char => char.charCodeAt(0))
+            );
+            
+            // Extract IV and encrypted data
+            const iv = combined.slice(0, 12);
+            const encryptedData = combined.slice(12);
+            
+            const decryptedData = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                encryptedData
+            );
+            
+            const decoder = new TextDecoder();
+            return decoder.decode(decryptedData);
+        } catch (error) {
+            console.error('Decryption failed:', error);
+            throw new Error('Failed to decrypt API key - wrong password or corrupted data');
+        }
+    }
+
+    async saveUserApiKey(apiKey, userPassword = null) {
         if (!this.user) {
             throw new Error('User not authenticated');
         }
 
         try {
+            let encryptedApiKey;
+            let isEncrypted = false;
+
+            // If user provides password, encrypt the API key
+            if (userPassword) {
+                encryptedApiKey = await this.encryptApiKey(apiKey, userPassword);
+                isEncrypted = true;
+            } else {
+                // Fallback: store without encryption (less secure)
+                encryptedApiKey = apiKey;
+                isEncrypted = false;
+            }
+
             await this.db.collection('users').doc(this.user.uid).set({
                 email: this.user.email,
-                apiKey: apiKey,
-                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                encryptedApiKey: encryptedApiKey,
+                isEncrypted: isEncrypted,
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+                // Add security metadata
+                keyCreatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                keyVersion: '1.0'
             }, { merge: true });
 
-            console.log('API key saved successfully');
+            console.log('Encrypted API key saved successfully');
         } catch (error) {
-            console.error('Failed to save API key:', error);
+            console.error('Failed to save encrypted API key:', error);
             throw error;
         }
     }
 
-    async getUserApiKey() {
+    async getUserApiKey(userPassword = null) {
         if (!this.user) {
             return null;
         }
 
         try {
             const doc = await this.db.collection('users').doc(this.user.uid).get();
-            if (doc.exists) {
-                return doc.data().apiKey;
+            if (!doc.exists) {
+                return null;
             }
-            return null;
+
+            const data = doc.data();
+            if (!data.encryptedApiKey) {
+                return null;
+            }
+
+            // If the key is encrypted, decrypt it
+            if (data.isEncrypted && userPassword) {
+                return await this.decryptApiKey(data.encryptedApiKey, userPassword);
+            } else if (data.isEncrypted && !userPassword) {
+                throw new Error('Password required to decrypt API key');
+            } else {
+                // Unencrypted key (legacy or fallback)
+                return data.encryptedApiKey;
+            }
         } catch (error) {
             console.error('Failed to get API key:', error);
-            return null;
+            throw error;
         }
+    }
+
+    // Generate a secure password from user's email and a master password
+    generateUserPassword(masterPassword) {
+        if (!this.user || !this.user.email) {
+            throw new Error('User not authenticated');
+        }
+        
+        // Combine user email with master password for unique per-user encryption
+        return this.user.email + '|' + masterPassword + '|screeps-dashboard';
+    }
+
+    // Secure API key management with user-provided master password
+    async saveSecureApiKey(apiKey, masterPassword) {
+        const userPassword = this.generateUserPassword(masterPassword);
+        return await this.saveUserApiKey(apiKey, userPassword);
+    }
+
+    async getSecureApiKey(masterPassword) {
+        const userPassword = this.generateUserPassword(masterPassword);
+        return await this.getUserApiKey(userPassword);
     }
 
     async saveGameData(dataType, data) {
