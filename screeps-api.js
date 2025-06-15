@@ -84,55 +84,86 @@ class ScreepsAPI {
     }
 
     async getRoom(roomName) {
-        return await this.request(`game/room-objects?room=${roomName}`);
+        try {
+            // Versuche verschiedene Endpunkte für Raum-Daten
+            const roomObjects = await this.request(`game/room-objects?room=${roomName}`).catch(() => null);
+            const roomTerrain = await this.request(`game/room-terrain?room=${roomName}`).catch(() => null);
+            const roomStatus = await this.request(`game/room-status?room=${roomName}`).catch(() => null);
+            
+            return {
+                objects: roomObjects?.objects || [],
+                terrain: roomTerrain,
+                status: roomStatus
+            };
+        } catch (error) {
+            console.warn(`Failed to get room data for ${roomName}:`, error);
+            return { objects: [], terrain: null, status: null };
+        }
     }
 
     async getUserRooms() {
         try {
-            // Versuche zuerst die user/rooms API
-            const roomsResponse = await this.request("user/rooms").catch(() => null);
-            if (roomsResponse && roomsResponse.rooms) {
-                const rooms = [];
-                for (const roomName of Object.keys(roomsResponse.rooms)) {
-                    try {
-                        const roomData = await this.getRoom(roomName);
-                        rooms.push({
-                            name: roomName,
-                            data: roomData,
-                            info: roomsResponse.rooms[roomName]
-                        });
-                    } catch (error) {
-                        console.warn(`Failed to get room data for ${roomName}:`, error);
-                        // Füge Raum trotzdem hinzu, auch ohne detaillierte Daten
-                        rooms.push({
-                            name: roomName,
-                            data: null,
-                            info: roomsResponse.rooms[roomName]
-                        });
-                    }
-                }
-                return rooms;
-            }
-
-            // Fallback: Verwende userInfo
-            const userInfo = await this.getUserInfo();
+            console.log('Fetching user rooms...');
+            
+            // Versuche verschiedene Endpunkte für Raum-Informationen
+            const [userInfo, roomsResponse, worldData] = await Promise.all([
+                this.getUserInfo(),
+                this.request("user/rooms").catch(e => { console.warn('user/rooms failed:', e); return null; }),
+                this.request("game/world-size").catch(e => { console.warn('world-size failed:', e); return null; })
+            ]);
+            
+            console.log('User info for rooms:', userInfo);
+            console.log('Rooms response:', roomsResponse);
+            
             const rooms = [];
+            let roomNames = [];
             
-            if (userInfo.rooms) {
-                for (const roomName of userInfo.rooms) {
-                    try {
-                        const roomData = await this.getRoom(roomName);
-                        rooms.push({
-                            name: roomName,
-                            data: roomData,
-                            info: null
-                        });
-                    } catch (error) {
-                        console.warn(`Failed to get room data for ${roomName}:`, error);
-                    }
+            // Sammle Raumnamen aus verschiedenen Quellen
+            if (roomsResponse && roomsResponse.rooms) {
+                roomNames = Object.keys(roomsResponse.rooms);
+                console.log('Room names from user/rooms:', roomNames);
+            } else if (userInfo.rooms && Array.isArray(userInfo.rooms)) {
+                roomNames = userInfo.rooms;
+                console.log('Room names from userInfo.rooms:', roomNames);
+            } else {
+                // Fallback: Versuche aus anderen Feldern zu extrahieren
+                console.log('Searching for room names in userInfo...');
+                if (userInfo.shards) {
+                    Object.keys(userInfo.shards).forEach(shardName => {
+                        const shard = userInfo.shards[shardName];
+                        if (shard.rooms && Array.isArray(shard.rooms)) {
+                            roomNames = roomNames.concat(shard.rooms);
+                        }
+                    });
+                }
+                console.log('Room names from shards:', roomNames);
+            }
+            
+            // Hole Daten für jeden Raum
+            for (const roomName of roomNames) {
+                try {
+                    console.log(`Fetching data for room: ${roomName}`);
+                    const roomData = await this.getRoom(roomName);
+                    const roomInfo = roomsResponse?.rooms?.[roomName] || null;
+                    
+                    rooms.push({
+                        name: roomName,
+                        data: roomData,
+                        info: roomInfo
+                    });
+                    console.log(`Successfully fetched data for room: ${roomName}`, roomData);
+                } catch (error) {
+                    console.warn(`Failed to get room data for ${roomName}:`, error);
+                    // Füge Raum trotzdem hinzu, auch ohne detaillierte Daten
+                    rooms.push({
+                        name: roomName,
+                        data: { objects: [] },
+                        info: roomsResponse?.rooms?.[roomName] || null
+                    });
                 }
             }
             
+            console.log('Final rooms data:', rooms);
             return rooms;
         } catch (error) {
             console.error('Failed to get user rooms:', error);
@@ -225,8 +256,20 @@ class ScreepsAPI {
             let cpuLimit = userInfo.cpuLimit || userInfo.cpuShard?.shard3 || 20;
 
             rooms.forEach(room => {
+                console.log(`Processing room: ${room.name}`, room.data);
+                
+                // Behandle verschiedene Datenstrukturen
+                let objects = [];
                 if (room.data && room.data.objects) {
-                    const objects = room.data.objects;
+                    objects = room.data.objects;
+                } else if (room.data && Array.isArray(room.data)) {
+                    objects = room.data;
+                } else if (room.info) {
+                    // Verwende room.info falls verfügbar
+                    console.log(`Using room info for ${room.name}:`, room.info);
+                }
+                
+                if (objects && objects.length > 0) {
                     
                     // Creeps zählen
                     const creeps = objects.filter(obj => obj.type === "creep");
@@ -301,6 +344,14 @@ class ScreepsAPI {
                     // Mineralien zählen
                     const minerals = objects.filter(obj => obj.type === "mineral");
                     totalMinerals += minerals.length;
+                } else {
+                    console.log(`No objects found for room: ${room.name}`);
+                    // Auch ohne Objekte zählen wir den Raum als existent
+                    // Falls room.info verfügbar ist, können wir daraus Daten extrahieren
+                    if (room.info) {
+                        // Hier könnten wir room.info Daten verwenden falls verfügbar
+                        console.log(`Room info available for ${room.name}:`, room.info);
+                    }
                 }
             });
 
@@ -315,7 +366,50 @@ class ScreepsAPI {
                     energyCreeps: overview.totals.energyCreeps || 0
                 };
             }
+            
+            // Fallback: Verwende Overview-Daten für Raum-Informationen falls verfügbar
+            if (overview && overview.shards) {
+                Object.keys(overview.shards).forEach(shardName => {
+                    const shard = overview.shards[shardName];
+                    if (shard.rooms && Array.isArray(shard.rooms)) {
+                        // Aktualisiere Raum-Anzahl falls mehr Räume in Overview gefunden werden
+                        if (shard.rooms.length > rooms.length) {
+                            console.log(`Found more rooms in overview: ${shard.rooms.length} vs ${rooms.length}`);
+                            // Füge fehlende Räume hinzu
+                            shard.rooms.forEach(roomName => {
+                                if (!rooms.find(r => r.name === roomName)) {
+                                    rooms.push({
+                                        name: roomName,
+                                        data: { objects: [] },
+                                        info: null
+                                    });
+                                }
+                            });
+                        }
+                    }
+                    
+                    // Extrahiere Statistiken aus Overview falls verfügbar
+                    if (shard.stats) {
+                        Object.keys(shard.stats).forEach(roomName => {
+                            const roomStats = shard.stats[roomName];
+                            if (roomStats && Array.isArray(roomStats)) {
+                                // Verwende die neuesten Statistiken
+                                const latestStats = roomStats[roomStats.length - 1];
+                                if (latestStats && latestStats.value) {
+                                    // Diese könnten Energie-Werte oder andere Metriken enthalten
+                                    console.log(`Room stats for ${roomName}:`, latestStats);
+                                }
+                            }
+                        });
+                    }
+                });
+            }
 
+            // Fallback-Werte falls keine Daten gefunden wurden
+            const finalRoomCount = Math.max(rooms.length, 
+                overview?.shards ? Object.values(overview.shards).reduce((sum, shard) => 
+                    sum + (shard.rooms ? shard.rooms.length : 0), 0) : 0);
+            
             const result = {
                 // Basis-Statistiken
                 energy: totalEnergy,
@@ -323,7 +417,7 @@ class ScreepsAPI {
                 creeps: totalCreeps,
                 cpu: cpuUsed,
                 cpuLimit: cpuLimit,
-                rooms: rooms.length,
+                rooms: finalRoomCount,
                 roomsData: rooms,
                 
                 // Erweiterte Strukturen
