@@ -36,7 +36,11 @@ class ScreepsDashboard {
             // Try to load a default room after a short delay
             setTimeout(() => {
                 this.tryLoadDefaultRoom();
-            }, 3000);
+            }, 1000);
+            // Try again after a longer delay in case the first attempt fails
+            setTimeout(() => {
+                this.tryLoadDefaultRoom();
+            }, 5000);
         } else {
             setTimeout(() => {
                 if (typeof openConfigModal === 'function') {
@@ -744,17 +748,61 @@ class ScreepsDashboard {
         this.addConsoleMessage('info', `Lade Raum ${roomName}...`);
         
         try {
-            const roomData = await this.api.getRoomObjects(roomName);
-            const roomTerrain = await this.api.getRoomTerrain(roomName);
+            console.log(`Loading room data for ${roomName}...`);
+            
+            // Try to get room data from existing API methods first
+            let roomObjects = null;
+            let roomTerrain = null;
+            
+            // First try the specific room API endpoints
+            try {
+                roomObjects = await this.api.getRoomObjects(roomName);
+                console.log('Room objects from API:', roomObjects);
+            } catch (error) {
+                console.warn('getRoomObjects failed, trying alternative:', error);
+                
+                // Fallback: try to get room data from getUserRooms
+                try {
+                    const userRooms = await this.api.getUserRooms();
+                    const roomData = userRooms.find(room => room.name === roomName);
+                    if (roomData && roomData.data && roomData.data.objects) {
+                        roomObjects = roomData.data.objects;
+                        console.log('Room objects from getUserRooms:', roomObjects);
+                    }
+                } catch (fallbackError) {
+                    console.warn('getUserRooms fallback failed:', fallbackError);
+                }
+            }
+            
+            // Try to get terrain data
+            try {
+                roomTerrain = await this.api.getRoomTerrain(roomName);
+                console.log('Room terrain from API:', roomTerrain);
+            } catch (error) {
+                console.warn('getRoomTerrain failed:', error);
+                // Create a default terrain (all plain)
+                roomTerrain = new Array(2500).fill(0);
+                console.log('Using default terrain');
+            }
+            
+            if (!roomObjects) {
+                // If we still don't have room objects, create a minimal visualization
+                this.addConsoleMessage('warning', `Keine Raum-Objekte für ${roomName} gefunden. Zeige nur Terrain.`);
+                roomObjects = [];
+            }
             
             this.roomVisualization.roomData = {
-                objects: roomData,
+                objects: roomObjects,
                 terrain: roomTerrain,
                 name: roomName
             };
             
+            console.log('Final room data:', this.roomVisualization.roomData);
+            
             this.drawRoomMap();
             this.updateRoomInfo();
+            
+            this.addConsoleMessage('success', `Raum ${roomName} erfolgreich geladen`);
             
         } catch (error) {
             console.error('Error loading room:', error);
@@ -763,29 +811,58 @@ class ScreepsDashboard {
     }
 
     drawRoomMap() {
-        if (!this.roomVisualization.ctx || !this.roomVisualization.roomData) return;
+        console.log('drawRoomMap called');
+        console.log('Canvas context:', this.roomVisualization.ctx);
+        console.log('Room data:', this.roomVisualization.roomData);
+        
+        if (!this.roomVisualization.ctx || !this.roomVisualization.roomData) {
+            console.warn('Missing canvas context or room data');
+            return;
+        }
         
         const ctx = this.roomVisualization.ctx;
         const canvas = this.roomVisualization.canvas;
         const roomData = this.roomVisualization.roomData;
+        
+        console.log(`Drawing room map for ${roomData.name}`);
+        console.log(`Canvas size: ${canvas.width}x${canvas.height}`);
         
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         const cellSize = 10; // 50x50 room = 500px canvas
         
+        // Draw a background first to ensure something is visible
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
         // Draw terrain
-        if (roomData.terrain) {
+        if (roomData.terrain && roomData.terrain.length > 0) {
+            console.log(`Drawing terrain with ${roomData.terrain.length} cells`);
             this.drawTerrain(ctx, roomData.terrain, cellSize);
+        } else {
+            console.log('No terrain data, drawing default grid');
+            // Draw a basic grid pattern if no terrain
+            ctx.fillStyle = '#2a2a2a';
+            for (let y = 0; y < 50; y++) {
+                for (let x = 0; x < 50; x++) {
+                    ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                }
+            }
         }
         
         // Draw structures and objects
-        if (roomData.objects) {
+        if (roomData.objects && roomData.objects.length > 0) {
+            console.log(`Drawing ${roomData.objects.length} objects`);
             this.drawRoomObjects(ctx, roomData.objects, cellSize);
+        } else {
+            console.log('No objects to draw');
         }
         
         // Draw grid
         this.drawGrid(ctx, cellSize);
+        
+        console.log('Room map drawing completed');
     }
 
     drawTerrain(ctx, terrain, cellSize) {
@@ -1019,21 +1096,32 @@ class ScreepsDashboard {
     }
 
     async tryLoadDefaultRoom() {
+        console.log('tryLoadDefaultRoom called');
+        console.log('Current selected room:', this.roomVisualization.selectedRoom);
+        
         // If no room is selected yet, try to load one
         if (!this.roomVisualization.selectedRoom) {
             try {
+                console.log('Trying to get overview data...');
                 const overview = await this.api.getOverview();
+                console.log('Overview data:', overview);
+                
                 if (overview && overview.rooms) {
                     const roomNames = Object.keys(overview.rooms);
+                    console.log('Available rooms:', roomNames);
+                    
                     if (roomNames.length > 0) {
                         const firstRoom = roomNames[0];
                         this.addConsoleMessage('info', `Lade Standard-Raum ${firstRoom}...`);
+                        console.log(`Selecting first room: ${firstRoom}`);
+                        
                         await this.selectRoom(firstRoom);
                         
                         const roomSelect = document.getElementById('roomSelect');
                         if (roomSelect) {
                             // Update selector options if not already done
                             if (roomSelect.children.length <= 1) {
+                                console.log('Populating room selector...');
                                 roomNames.forEach(roomName => {
                                     const option = document.createElement('option');
                                     option.value = roomName;
@@ -1042,13 +1130,47 @@ class ScreepsDashboard {
                                 });
                             }
                             roomSelect.value = firstRoom;
+                            console.log('Room selector updated');
                         }
+                    } else {
+                        this.addConsoleMessage('warning', 'Keine Räume in Overview gefunden');
+                    }
+                } else {
+                    this.addConsoleMessage('warning', 'Keine Overview-Daten verfügbar');
+                    
+                    // Fallback: try getUserRooms
+                    try {
+                        console.log('Trying getUserRooms as fallback...');
+                        const userRooms = await this.api.getUserRooms();
+                        console.log('User rooms data:', userRooms);
+                        
+                        if (userRooms && userRooms.length > 0) {
+                            const firstRoom = userRooms[0].name;
+                            this.addConsoleMessage('info', `Lade Standard-Raum ${firstRoom} (Fallback)...`);
+                            await this.selectRoom(firstRoom);
+                            
+                            const roomSelect = document.getElementById('roomSelect');
+                            if (roomSelect) {
+                                userRooms.forEach(room => {
+                                    const option = document.createElement('option');
+                                    option.value = room.name;
+                                    option.textContent = room.name;
+                                    roomSelect.appendChild(option);
+                                });
+                                roomSelect.value = firstRoom;
+                            }
+                        }
+                    } catch (fallbackError) {
+                        console.error('Fallback getUserRooms failed:', fallbackError);
+                        this.addConsoleMessage('error', 'Konnte keine Räume laden');
                     }
                 }
             } catch (error) {
                 console.warn('Could not load default room:', error);
-                this.addConsoleMessage('warning', 'Konnte keinen Standard-Raum laden');
+                this.addConsoleMessage('warning', `Konnte keinen Standard-Raum laden: ${error.message}`);
             }
+        } else {
+            console.log('Room already selected:', this.roomVisualization.selectedRoom);
         }
     }
 
