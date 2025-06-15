@@ -959,6 +959,13 @@
     </div>
 
     <!-- Scripts -->
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    
+    <!-- Dashboard Scripts -->
     <script src="screeps-api.js"></script>
     <script src="dashboard.js"></script>
     <script>
@@ -985,6 +992,14 @@
 
             try {
                 console.log('Initializing dashboard...');
+                
+                // Initialize Firebase first
+                if (window.firebaseManager) {
+                    console.log('Initializing Firebase...');
+                    await window.firebaseManager.init();
+                    console.log('Firebase initialized');
+                }
+                
                 window.dashboard = new ScreepsDashboard();
                 await window.dashboard.init(); // Call async init
                 isInitialized = true;
@@ -995,6 +1010,14 @@
                 
                 // Update user info
                 updateUserInfo();
+                
+                // Setup Firebase auth listener after Firebase is ready
+                if (window.firebaseManager && window.firebaseManager.auth) {
+                    window.firebaseManager.auth.onAuthStateChanged((user) => {
+                        console.log('Firebase auth state changed:', user?.email);
+                        setTimeout(updateUserInfo, 100);
+                    });
+                }
                 
             } catch (error) {
                 console.error('Failed to initialize dashboard:', error);
@@ -1023,6 +1046,13 @@
               const demoMode = localStorage.getItem('demoMode');
               const apiToken = localStorage.getItem('screepsApiToken');
               
+              console.log('Updating user info...', {
+                  firebaseManager: !!window.firebaseManager,
+                  firebaseUser: window.firebaseManager?.user?.email,
+                  demoMode,
+                  apiToken: !!apiToken
+              });
+              
               // Check if Firebase user is logged in
               if (window.firebaseManager && window.firebaseManager.user) {
                   currentUserSpan.textContent = window.firebaseManager.user.email;
@@ -1031,13 +1061,16 @@
                   currentUserSpan.textContent = 'Demo Mode';
                   if (logoutButton) logoutButton.style.display = 'block';
               } else if (apiToken) {
-                  currentUserSpan.textContent = 'API Token Set';
+                  currentUserSpan.textContent = 'API Token Active';
                   if (logoutButton) logoutButton.style.display = 'block';
               } else {
                   currentUserSpan.textContent = 'Not logged in';
                   if (logoutButton) logoutButton.style.display = 'none';
               }
           }
+
+          // Update user info periodically
+          setInterval(updateUserInfo, 2000); // Update every 2 seconds
 
          function showHistoricalData() {
              if (!window.dashboard) {
