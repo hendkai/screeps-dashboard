@@ -1405,13 +1405,17 @@ class ScreepsDashboard {
         const roomCreepsCanvas = document.getElementById('roomCreepsChart');
         
         if (roomEnergyCanvas) {
+            // Set canvas size explicitly
+            roomEnergyCanvas.style.height = '300px';
+            roomEnergyCanvas.style.maxHeight = '300px';
+            
             const ctx = roomEnergyCanvas.getContext('2d');
             this.charts.roomEnergy = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: [],
                     datasets: [{
-                        label: 'Energie',
+                        label: 'Energy',
                         data: [],
                         backgroundColor: 'rgba(0, 255, 136, 0.6)',
                         borderColor: '#00ff88',
@@ -1441,6 +1445,10 @@ class ScreepsDashboard {
         }
         
         if (roomCreepsCanvas) {
+            // Set canvas size explicitly
+            roomCreepsCanvas.style.height = '300px';
+            roomCreepsCanvas.style.maxHeight = '300px';
+            
             const ctx = roomCreepsCanvas.getContext('2d');
             this.charts.roomCreeps = new Chart(ctx, {
                 type: 'bar',
@@ -1482,7 +1490,7 @@ class ScreepsDashboard {
         if (!roomSelect) return;
         
         // Clear existing options except the first one
-        roomSelect.innerHTML = '<option value="">Raum wählen...</option>';
+        roomSelect.innerHTML = '<option value="">Select room...</option>';
         
         // Add room options
         rooms.forEach(roomName => {
@@ -1547,11 +1555,11 @@ class ScreepsDashboard {
 
     getRoomStatus(room) {
         if (room.creepCount === 0) {
-            return { text: 'Inaktiv', class: 'danger' };
+            return { text: 'Inactive', class: 'danger' };
         } else if (room.energy < room.energyCapacity * 0.3) {
-            return { text: 'Niedrige Energie', class: 'warning' };
+            return { text: 'Low Energy', class: 'warning' };
         } else {
-            return { text: 'Aktiv', class: 'active' };
+            return { text: 'Active', class: 'active' };
         }
     }
 

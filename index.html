@@ -427,6 +427,19 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
             gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .room-performance-charts .chart-container {
+            height: 400px;
+            min-height: 400px;
+            max-height: 400px;
+        }
+
+        .room-performance-charts .chart-container canvas {
+            max-width: 100%;
+            height: 300px !important;
+            max-height: 300px !important;
         }
 
         .data-section {
