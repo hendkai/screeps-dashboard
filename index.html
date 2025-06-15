@@ -820,6 +820,9 @@
                 <button id="syncFirestoreBtn" class="btn-primary" onclick="dashboard.syncWithFirestore()">
                     <i class="fas fa-sync"></i> Sync Cloud
                 </button>
+                <button id="debugFirestoreBtn" class="btn-primary" onclick="debugFirestore()" style="background: #ff9800;">
+                    <i class="fas fa-bug"></i> Debug Firestore
+                </button>
                 <button id="showHistoryBtn" class="btn-primary" onclick="showHistoricalData()">
                     <i class="fas fa-history"></i> Show History
                 </button>
@@ -1151,6 +1154,7 @@
               // Show/hide Firestore buttons based on authentication
               const exportAllBtn = document.getElementById('exportAllDataBtn');
               const syncBtn = document.getElementById('syncFirestoreBtn');
+              const debugBtn = document.getElementById('debugFirestoreBtn');
               const isAuthenticated = firebaseUser !== null;
               
               if (exportAllBtn) {
@@ -1158,6 +1162,9 @@
               }
               if (syncBtn) {
                   syncBtn.style.display = isAuthenticated ? 'inline-flex' : 'none';
+              }
+              if (debugBtn) {
+                  debugBtn.style.display = isAuthenticated ? 'inline-flex' : 'none';
               }
               
               console.log('User status updated to:', userStatus);
@@ -1180,6 +1187,72 @@
               
               // Force reload with cache bypass
               window.location.reload(true);
+          }
+
+          // Debug Firestore function
+          async function debugFirestore() {
+              console.log('=== FIRESTORE DEBUG ===');
+              
+              if (!window.firebaseManager) {
+                  console.log('❌ FirebaseManager not available');
+                  alert('FirebaseManager not available');
+                  return;
+              }
+              
+              if (!window.firebaseManager.user) {
+                  console.log('❌ User not authenticated');
+                  alert('User not authenticated. Please log in first.');
+                  return;
+              }
+              
+              console.log('✅ User authenticated:', window.firebaseManager.user.email);
+              console.log('✅ User UID:', window.firebaseManager.user.uid);
+              
+              try {
+                  // Test saving some data
+                  console.log('🔄 Testing data save...');
+                  await window.firebaseManager.saveGameData('debug', {
+                      message: 'Debug test',
+                      timestamp: new Date().toISOString(),
+                      testData: { value: 123, array: [1, 2, 3] }
+                  });
+                  console.log('✅ Debug data saved successfully');
+                  
+                  // Test loading data
+                  console.log('🔄 Testing data load...');
+                  const debugData = await window.firebaseManager.getGameData('debug', 5);
+                  console.log('✅ Debug data loaded:', debugData);
+                  
+                  // Test stats data
+                  console.log('🔄 Loading stats data...');
+                  const statsData = await window.firebaseManager.getGameData('stats', 10);
+                  console.log('📊 Stats data count:', statsData.length);
+                  console.log('📊 Stats data:', statsData);
+                  
+                  // Test rooms data
+                  console.log('🔄 Loading rooms data...');
+                  const roomsData = await window.firebaseManager.getGameData('rooms', 10);
+                  console.log('🏠 Rooms data count:', roomsData.length);
+                  console.log('🏠 Rooms data:', roomsData);
+                  
+                  // Show summary
+                  const summary = `
+Firestore Debug Results:
+- User: ${window.firebaseManager.user.email}
+- Stats entries: ${statsData.length}
+- Rooms entries: ${roomsData.length}
+- Debug entries: ${debugData.length}
+
+Check console for detailed data.
+                  `;
+                  alert(summary);
+                  
+              } catch (error) {
+                  console.error('❌ Firestore debug error:', error);
+                  alert('Firestore error: ' + error.message);
+              }
+              
+              console.log('=== DEBUG COMPLETE ===');
           }
 
           // Add cache clear button (for debugging)
