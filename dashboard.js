@@ -33,6 +33,10 @@ class ScreepsDashboard {
         
         if (this.api.getToken()) {
             this.startUpdating();
+            // Try to load a default room after a short delay
+            setTimeout(() => {
+                this.tryLoadDefaultRoom();
+            }, 3000);
         } else {
             setTimeout(() => {
                 if (typeof openConfigModal === 'function') {
@@ -1014,6 +1018,40 @@ class ScreepsDashboard {
         }
     }
 
+    async tryLoadDefaultRoom() {
+        // If no room is selected yet, try to load one
+        if (!this.roomVisualization.selectedRoom) {
+            try {
+                const overview = await this.api.getOverview();
+                if (overview && overview.rooms) {
+                    const roomNames = Object.keys(overview.rooms);
+                    if (roomNames.length > 0) {
+                        const firstRoom = roomNames[0];
+                        this.addConsoleMessage('info', `Lade Standard-Raum ${firstRoom}...`);
+                        await this.selectRoom(firstRoom);
+                        
+                        const roomSelect = document.getElementById('roomSelect');
+                        if (roomSelect) {
+                            // Update selector options if not already done
+                            if (roomSelect.children.length <= 1) {
+                                roomNames.forEach(roomName => {
+                                    const option = document.createElement('option');
+                                    option.value = roomName;
+                                    option.textContent = roomName;
+                                    roomSelect.appendChild(option);
+                                });
+                            }
+                            roomSelect.value = firstRoom;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('Could not load default room:', error);
+                this.addConsoleMessage('warning', 'Konnte keinen Standard-Raum laden');
+            }
+        }
+    }
+
     // Multi-Room Management Methods
     initMultiRoomManagement() {
         this.initRoomComparisonTable();
@@ -1115,6 +1153,14 @@ class ScreepsDashboard {
             option.textContent = roomName;
             roomSelect.appendChild(option);
         });
+        
+        // Automatically select and load the first room if available
+        if (rooms.length > 0 && !this.roomVisualization.selectedRoom) {
+            const firstRoom = rooms[0];
+            roomSelect.value = firstRoom;
+            this.selectRoom(firstRoom);
+            this.addConsoleMessage('info', `Automatisch Raum ${firstRoom} ausgewählt`);
+        }
     }
 
     updateRoomComparison(roomsData) {
@@ -1225,7 +1271,7 @@ class ScreepsDashboard {
                 }
             }
             
-            // Update room selector
+            // Update room selector (this will auto-select first room if none selected)
             this.updateRoomSelector(roomsData.map(room => room.name));
             
             // Update room comparison table
@@ -1239,6 +1285,16 @@ class ScreepsDashboard {
             roomsData.forEach(room => {
                 this.roomsData.set(room.name, room);
             });
+            
+            // If no room is selected yet and we have rooms, select the first one
+            if (!this.roomVisualization.selectedRoom && roomsData.length > 0) {
+                const firstRoom = roomsData[0].name;
+                await this.selectRoom(firstRoom);
+                const roomSelect = document.getElementById('roomSelect');
+                if (roomSelect) {
+                    roomSelect.value = firstRoom;
+                }
+            }
             
         } catch (error) {
             console.error('Error updating room management:', error);
