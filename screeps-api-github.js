@@ -1,11 +1,34 @@
 class ScreepsAPI {
     constructor() {
-        // Use local proxy server to avoid CORS issues
-        this.baseUrl = "http://localhost:8081/api/";
-        this.fallbackUrl = "https://screeps.com/api/";
+        // For GitHub Pages - use direct API connection
+        this.baseUrl = "https://screeps.com/api/";
         this.token = null;
         this.isConnected = false;
-        this.useProxy = true;
+        
+        // Detect environment
+        this.environment = this.detectEnvironment();
+        console.log(`🌐 Environment: ${this.environment}`);
+        
+        if (this.environment === 'github-pages') {
+            console.log('✅ GitHub Pages detected - CORS should work!');
+        } else if (this.environment === 'localhost') {
+            console.warn('⚠️ Localhost detected - CORS errors expected');
+            console.log('💡 For local development, use: python3 proxy-server.py');
+        }
+    }
+
+    detectEnvironment() {
+        const hostname = window.location.hostname;
+        
+        if (hostname.includes('github.io')) {
+            return 'github-pages';
+        } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            return 'localhost';
+        } else if (hostname.includes('vercel.app') || hostname.includes('netlify.app')) {
+            return 'serverless';
+        } else {
+            return 'other';
+        }
     }
 
     setToken(token) {
@@ -21,30 +44,14 @@ class ScreepsAPI {
     }
 
     setServerUrl(url) {
-        if (url.includes('localhost') || url.includes('127.0.0.1')) {
-            // Custom local server
-            this.baseUrl = url.endsWith("/") ? url : url + "/";
-            this.useProxy = false;
-        } else if (url === 'https://screeps.com/api/') {
-            // Official server - use proxy
-            this.baseUrl = "http://localhost:8081/api/";
-            this.useProxy = true;
-        } else {
-            // Other server - try direct connection
-            this.baseUrl = url.endsWith("/") ? url : url + "/";
-            this.useProxy = false;
-        }
+        this.baseUrl = url.endsWith("/") ? url : url + "/";
         localStorage.setItem("screeps_server", this.baseUrl);
-        localStorage.setItem("screeps_use_proxy", this.useProxy.toString());
     }
 
     getServerUrl() {
         const stored = localStorage.getItem("screeps_server");
-        const useProxyStored = localStorage.getItem("screeps_use_proxy");
-        
         if (stored) {
             this.baseUrl = stored;
-            this.useProxy = useProxyStored === 'true';
         }
         return this.baseUrl;
     }
@@ -62,13 +69,17 @@ class ScreepsAPI {
             ...options.headers
         };
 
+        console.log(`📡 API Request: ${url}`);
+
         try {
             const response = await fetch(url, {
                 ...options,
                 headers,
-                mode: this.useProxy ? 'cors' : 'cors',
+                mode: 'cors',
                 credentials: 'omit'
             });
+
+            console.log(`📡 API Response: ${response.status} ${response.statusText}`);
 
             if (!response.ok) {
                 throw new Error(`API Error: ${response.status} ${response.statusText}`);
@@ -83,14 +94,15 @@ class ScreepsAPI {
         } catch (error) {
             console.error("API Request failed:", error);
             
-            // If proxy fails, provide helpful error message
-            if (this.useProxy && (error.message.includes('NetworkError') || error.message.includes('Failed to fetch'))) {
-                throw new Error('Proxy-Server nicht erreichbar. Starte bitte den Proxy-Server mit: python3 proxy-server.py');
-            }
-            
-            // Handle other CORS errors
-            if (error.message.includes('NetworkError') || error.message.includes('CORS')) {
-                throw new Error('CORS Error: Die Screeps API blockiert Anfragen von diesem Browser. Nutze den Proxy-Server: python3 proxy-server.py');
+            // Provide environment-specific error messages
+            if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
+                if (this.environment === 'localhost') {
+                    throw new Error('❌ CORS-Fehler auf Localhost. Lösungen:\n1. Nutze: python3 proxy-server.py\n2. Oder installiere Browser-Extension "CORS Unblock"\n3. Oder deploye auf GitHub Pages');
+                } else if (this.environment === 'github-pages') {
+                    throw new Error('❌ Unerwarteter CORS-Fehler auf GitHub Pages. Bitte überprüfe:\n1. Repository ist öffentlich\n2. API-Token ist korrekt\n3. Internetverbindung ist stabil');
+                } else {
+                    throw new Error('❌ CORS-Fehler. Versuche:\n1. GitHub Pages oder Vercel\n2. Browser-Extension "CORS Unblock"\n3. Lokalen Proxy-Server');
+                }
             }
             
             throw error;
@@ -144,10 +156,13 @@ class ScreepsAPI {
 
     async testConnection() {
         try {
-            await this.getUserInfo();
+            console.log('🔍 Testing connection to Screeps API...');
+            const userInfo = await this.getUserInfo();
+            console.log('✅ Connection successful!', userInfo);
             this.isConnected = true;
             return true;
         } catch (error) {
+            console.error('❌ Connection failed:', error);
             this.isConnected = false;
             throw error;
         }

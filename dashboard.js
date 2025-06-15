@@ -55,7 +55,20 @@ class ScreepsDashboard {
     }
 
     initCharts() {
-        const energyCtx = document.getElementById('energyChart').getContext('2d');
+        // Get canvas elements and set maximum dimensions
+        const energyCanvas = document.getElementById('energyChart');
+        const cpuCanvas = document.getElementById('cpuChart');
+        
+        // Set maximum canvas dimensions to prevent size errors
+        const maxWidth = Math.min(800, window.innerWidth - 100);
+        const maxHeight = 400;
+        
+        energyCanvas.style.maxWidth = maxWidth + 'px';
+        energyCanvas.style.maxHeight = maxHeight + 'px';
+        cpuCanvas.style.maxWidth = maxWidth + 'px';
+        cpuCanvas.style.maxHeight = maxHeight + 'px';
+
+        const energyCtx = energyCanvas.getContext('2d');
         this.charts.energy = new Chart(energyCtx, {
             type: 'line',
             data: {
@@ -72,6 +85,10 @@ class ScreepsDashboard {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2), // Limit pixel ratio
+                animation: {
+                    duration: 0 // Disable animations to reduce canvas operations
+                },
                 plugins: {
                     legend: {
                         labels: { color: '#00ff88' }
@@ -79,18 +96,24 @@ class ScreepsDashboard {
                 },
                 scales: {
                     x: {
-                        ticks: { color: '#00ff88' },
+                        ticks: { 
+                            color: '#00ff88',
+                            maxTicksLimit: 10 // Limit number of ticks
+                        },
                         grid: { color: '#333333' }
                     },
                     y: {
-                        ticks: { color: '#00ff88' },
+                        ticks: { 
+                            color: '#00ff88',
+                            maxTicksLimit: 8 // Limit number of ticks
+                        },
                         grid: { color: '#333333' }
                     }
                 }
             }
         });
 
-        const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+        const cpuCtx = cpuCanvas.getContext('2d');
         this.charts.cpu = new Chart(cpuCtx, {
             type: 'line',
             data: {
@@ -107,6 +130,10 @@ class ScreepsDashboard {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2), // Limit pixel ratio
+                animation: {
+                    duration: 0 // Disable animations to reduce canvas operations
+                },
                 plugins: {
                     legend: {
                         labels: { color: '#00ff88' }
@@ -114,11 +141,17 @@ class ScreepsDashboard {
                 },
                 scales: {
                     x: {
-                        ticks: { color: '#00ff88' },
+                        ticks: { 
+                            color: '#00ff88',
+                            maxTicksLimit: 10 // Limit number of ticks
+                        },
                         grid: { color: '#333333' }
                     },
                     y: {
-                        ticks: { color: '#00ff88' },
+                        ticks: { 
+                            color: '#00ff88',
+                            maxTicksLimit: 8 // Limit number of ticks
+                        },
                         grid: { color: '#333333' }
                     }
                 }

@@ -149,11 +149,14 @@ body {
     border: 1px solid #333333;
     border-radius: 8px;
     padding: 1.5rem;
+    height: 450px;
+    overflow: hidden;
+    position: relative;
 }
 
 .chart-container h3 {
     color: #00ff88;
-    margin-bottom: 1rem;
+    margin: 0 0 1rem 0;
     font-size: 1.1rem;
     display: flex;
     align-items: center;
@@ -504,4 +507,12 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #00ff88;
+}
+
+/* Add canvas size constraints */
+.chart-container canvas {
+    max-width: 100% !important;
+    max-height: 380px !important;
+    width: auto !important;
+    height: auto !important;
 }
