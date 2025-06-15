@@ -48,12 +48,64 @@
                 <button id="googleSignIn" class="btn btn-google">
                     <i class="fab fa-google"></i> Sign in with Google
                 </button>
+                
+                <div class="divider"><span>or with Email</span></div>
+                
+                <form id="emailLoginForm">
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" placeholder="your@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" placeholder="Your password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt"></i> Sign In
+                    </button>
+                </form>
+                
+                <div class="divider"><span>No account yet?</span></div>
+                
+                <button id="showSignUp" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i> Create Account
+                </button>
+                
                 <div class="divider"><span>or use Demo Mode</span></div>
+                
                 <button id="demoMode" class="btn btn-primary">
                     <i class="fas fa-play"></i> Start Demo Mode
                 </button>
             </div>
         </div>
+        
+        <!-- Sign Up Form -->
+        <div id="signUpSection" style="display: none;">
+            <div class="login-form">
+                <h3 style="color: #00ff88; text-align: center; margin-bottom: 1rem;">Create Account</h3>
+                <form id="signUpForm">
+                    <div class="form-group">
+                        <label for="signUpEmail">Email:</label>
+                        <input type="email" id="signUpEmail" placeholder="your@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signUpPassword">Password:</label>
+                        <input type="password" id="signUpPassword" placeholder="Choose a password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm Password:</label>
+                        <input type="password" id="confirmPassword" placeholder="Confirm your password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-user-plus"></i> Create Account
+                    </button>
+                </form>
+                <button id="backToLogin" class="btn btn-secondary" style="margin-top: 1rem; background: #6c757d;">
+                    <i class="fas fa-arrow-left"></i> Back to Login
+                </button>
+            </div>
+        </div>
+        
         <div id="apiKeySection" style="display: none;">
             <div class="api-key-section">
                 <h3><i class="fas fa-key"></i> Screeps API Key</h3>
@@ -109,6 +161,7 @@
         });
 
         function setupEventListeners() {
+            // Demo Mode
             document.getElementById('demoMode').addEventListener('click', () => {
                 localStorage.setItem('demoMode', 'true');
                 localStorage.setItem('screepsApiToken', '16b0222c-47e4-482b-bf6e-6ba76994a35e');
@@ -118,6 +171,7 @@
                 }, 1000);
             });
 
+            // Google Sign In
             document.getElementById('googleSignIn').addEventListener('click', async () => {
                 try {
                     setLoading(true);
@@ -133,16 +187,120 @@
                 }
             });
 
-            document.getElementById('apiKeyForm').addEventListener('submit', (e) => {
+            // Email Login
+            document.getElementById('emailLoginForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+
+                try {
+                    setLoading(true);
+                    if (window.firebaseManager && window.firebaseManager.isInitialized) {
+                        await window.firebaseManager.signInWithEmail(email, password);
+                    } else {
+                        showError('Firebase is not initialized.');
+                    }
+                } catch (error) {
+                    showError('Email sign-in failed: ' + error.message);
+                } finally {
+                    setLoading(false);
+                }
+            });
+
+            // Show Sign Up
+            document.getElementById('showSignUp').addEventListener('click', () => {
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('signUpSection').style.display = 'block';
+            });
+
+            // Back to Login
+            document.getElementById('backToLogin').addEventListener('click', () => {
+                document.getElementById('signUpSection').style.display = 'none';
+                document.getElementById('loginSection').style.display = 'block';
+            });
+
+            // Sign Up
+            document.getElementById('signUpForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('signUpEmail').value;
+                const password = document.getElementById('signUpPassword').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+
+                if (password !== confirmPassword) {
+                    showError('Passwords do not match');
+                    return;
+                }
+
+                try {
+                    setLoading(true);
+                    if (window.firebaseManager && window.firebaseManager.isInitialized) {
+                        await window.firebaseManager.signUpWithEmail(email, password);
+                        showSuccess('Account created successfully!');
+                    } else {
+                        showError('Firebase is not initialized.');
+                    }
+                } catch (error) {
+                    showError('Sign-up failed: ' + error.message);
+                } finally {
+                    setLoading(false);
+                }
+            });
+
+            // API Key Form
+            document.getElementById('apiKeyForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const apiKey = document.getElementById('apiKey').value;
-                localStorage.setItem('screepsApiToken', apiKey);
-                localStorage.removeItem('demoMode');
-                showSuccess('API token saved!');
-                setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 1000);
+
+                try {
+                    setLoading(true);
+                    if (window.firebaseManager && window.firebaseManager.user) {
+                        await window.firebaseManager.saveUserApiKey(apiKey);
+                        showSuccess('API token saved successfully!');
+                        document.getElementById('apiKeySection').style.display = 'none';
+                        document.getElementById('dashboardLink').style.display = 'block';
+                    } else {
+                        // Fallback for demo mode
+                        localStorage.setItem('screepsApiToken', apiKey);
+                        localStorage.removeItem('demoMode');
+                        showSuccess('API token saved!');
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 1000);
+                    }
+                } catch (error) {
+                    showError('Failed to save API token: ' + error.message);
+                } finally {
+                    setLoading(false);
+                }
             });
+
+            // Override Firebase Manager auth state change
+            if (window.firebaseManager) {
+                const originalOnAuthStateChanged = window.firebaseManager.onAuthStateChanged;
+                window.firebaseManager.onAuthStateChanged = async (user) => {
+                    if (user) {
+                        console.log('User logged in:', user.email);
+                        document.getElementById('loginSection').style.display = 'none';
+                        document.getElementById('signUpSection').style.display = 'none';
+                        
+                        // Check if user has API key
+                        const apiKey = await window.firebaseManager.getUserApiKey();
+                        if (apiKey) {
+                            // User has API key, show dashboard link
+                            document.getElementById('dashboardLink').style.display = 'block';
+                        } else {
+                            // User needs to set API key
+                            document.getElementById('apiKeySection').style.display = 'block';
+                        }
+                    } else {
+                        console.log('User logged out');
+                        document.getElementById('loginSection').style.display = 'block';
+                        document.getElementById('signUpSection').style.display = 'none';
+                        document.getElementById('apiKeySection').style.display = 'none';
+                        document.getElementById('dashboardLink').style.display = 'none';
+                    }
+                };
+            }
         }
 
         function showError(message) {
