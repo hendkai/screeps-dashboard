@@ -44,7 +44,7 @@ class ScreepsDashboard {
             // Force load W26N53 for testing
             setTimeout(() => {
                 console.log('Force loading W26N53 for testing...');
-                this.selectRoom('W26N53');
+                this.testRoomVisualization();
             }, 3000);
         } else {
             setTimeout(() => {
@@ -927,6 +927,11 @@ class ScreepsDashboard {
                 
                 ctx.fillStyle = color;
                 ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                
+                // Add a subtle border to make terrain more visible
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.lineWidth = 0.5;
+                ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
             }
         }
     }
@@ -1143,6 +1148,66 @@ class ScreepsDashboard {
     async refreshRoomData() {
         if (this.roomVisualization.selectedRoom) {
             await this.selectRoom(this.roomVisualization.selectedRoom);
+        }
+    }
+
+    async testRoomVisualization() {
+        console.log('=== Testing Room Visualization ===');
+        
+        try {
+            // Test direct API calls
+            console.log('Testing direct API calls...');
+            
+            const roomObjectsResponse = await fetch('https://screeps.com/api/game/room-objects?room=W26N53&shard=shard3', {
+                headers: { 'X-Token': this.api.getToken() }
+            });
+            
+            if (roomObjectsResponse.ok) {
+                const roomObjectsData = await roomObjectsResponse.json();
+                console.log('Direct room objects API response:', roomObjectsData);
+                
+                if (roomObjectsData.objects && roomObjectsData.objects.length > 0) {
+                    console.log(`Found ${roomObjectsData.objects.length} objects directly from API`);
+                    
+                    // Test terrain API
+                    const terrainResponse = await fetch('https://screeps.com/api/game/room-terrain?room=W26N53&shard=shard3', {
+                        headers: { 'X-Token': this.api.getToken() }
+                    });
+                    
+                    if (terrainResponse.ok) {
+                        const terrainData = await terrainResponse.json();
+                        console.log('Direct terrain API response:', terrainData);
+                        
+                        // Manually set room data and draw
+                        this.roomVisualization.roomData = {
+                            objects: roomObjectsData.objects,
+                            terrain: terrainData.terrain,
+                            name: 'W26N53'
+                        };
+                        
+                        console.log('Manually set room data:', this.roomVisualization.roomData);
+                        this.drawRoomMap();
+                        this.updateRoomInfo();
+                        
+                        this.addConsoleMessage('success', `Direkte API-Verbindung erfolgreich! ${roomObjectsData.objects.length} Objekte geladen.`);
+                        
+                        // Update room selector
+                        const roomSelect = document.getElementById('roomSelect');
+                        if (roomSelect) {
+                            roomSelect.value = 'W26N53';
+                        }
+                        
+                        return;
+                    }
+                }
+            }
+            
+            console.log('Direct API failed, trying selectRoom method...');
+            await this.selectRoom('W26N53');
+            
+        } catch (error) {
+            console.error('Test room visualization failed:', error);
+            this.addConsoleMessage('error', `Test fehlgeschlagen: ${error.message}`);
         }
     }
 
