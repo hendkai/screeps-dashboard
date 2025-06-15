@@ -963,12 +963,24 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-config.js"></script>
+    <script src="firebase-config.js?v=1.1"></script>
     
     <!-- Dashboard Scripts -->
-    <script src="screeps-api.js"></script>
-    <script src="dashboard.js"></script>
+    <script src="screeps-api.js?v=1.1"></script>
+    <script src="dashboard.js?v=1.1"></script>
     <script>
+        // Clear any cached state on page load
+        console.log('Clearing cached state...');
+        
+        // Force clear any stale localStorage flags
+        const currentTime = Date.now();
+        const lastClear = localStorage.getItem('lastStateClear');
+        if (!lastClear || (currentTime - parseInt(lastClear)) > 60000) { // Clear every minute
+            console.log('Clearing stale localStorage state');
+            localStorage.removeItem('hasEncryptedApiToken');
+            localStorage.setItem('lastStateClear', currentTime.toString());
+        }
+        
         // Global dashboard variable on window object
         window.dashboard = window.dashboard || null;
         let isInitialized = false;
@@ -1019,6 +1031,12 @@
                     });
                 }
                 
+                // Add debug button for cache clearing
+                addDebugButton();
+                
+                // Update user info periodically
+                setInterval(updateUserInfo, 3000); // Update every 3 seconds
+                
             } catch (error) {
                 console.error('Failed to initialize dashboard:', error);
                 isInitialized = false;
@@ -1026,98 +1044,177 @@
         });
 
                  function logout() {
+             console.log('Logging out and clearing all data...');
+             
              // Clear stored data
              localStorage.removeItem('screepsApiToken');
              localStorage.removeItem('demoMode');
              localStorage.removeItem('screepsHistoricalData');
+             localStorage.removeItem('hasEncryptedApiToken');
+             localStorage.removeItem('lastStateClear');
+             
+             // Clear session storage
+             sessionStorage.clear();
              
              // Sign out from Firebase if available
              if (window.firebaseManager && window.firebaseManager.auth) {
-                 window.firebaseManager.signOut().catch(console.error);
+                 window.firebaseManager.signOut().then(() => {
+                     console.log('Firebase sign out successful');
+                 }).catch(console.error);
              }
              
-             // Redirect to login
-             window.location.href = 'login.html';
+             // Clear dashboard state
+             if (window.dashboard) {
+                 window.dashboard.stopUpdating();
+                 window.dashboard.api.setToken('');
+             }
+             
+             // Update UI immediately
+             updateUserInfo();
+             
+             // Redirect to login after a short delay
+             setTimeout(() => {
+                 window.location.href = 'login.html';
+             }, 500);
          }
 
           function updateUserInfo() {
               const currentUserSpan = document.getElementById('currentUser');
               const logoutButton = document.querySelector('button[onclick="logout()"]');
+              
+              if (!currentUserSpan) {
+                  console.warn('currentUser element not found');
+                  return;
+              }
+              
+              // Get current state
               const demoMode = localStorage.getItem('demoMode');
               const apiToken = localStorage.getItem('screepsApiToken');
+              const hasEncryptedToken = localStorage.getItem('hasEncryptedApiToken');
               
-              console.log('Updating user info...', {
-                  firebaseManager: !!window.firebaseManager,
-                  firebaseUser: window.firebaseManager?.user?.email,
+              // Check Firebase state
+              const firebaseReady = window.firebaseManager && window.firebaseManager.auth;
+              const firebaseUser = firebaseReady ? window.firebaseManager.user : null;
+              
+              console.log('User state check:', {
+                  firebaseReady,
+                  firebaseUser: firebaseUser?.email || null,
                   demoMode,
-                  apiToken: !!apiToken
+                  apiToken: !!apiToken,
+                  hasEncryptedToken: !!hasEncryptedToken,
+                  timestamp: new Date().toISOString()
               });
               
-              // Check if Firebase user is logged in
-              if (window.firebaseManager && window.firebaseManager.user) {
-                  currentUserSpan.textContent = window.firebaseManager.user.email;
-                  if (logoutButton) logoutButton.style.display = 'block';
+              // Determine user status with priority order
+              let userStatus = 'Not logged in';
+              let showLogout = false;
+              
+              if (firebaseUser) {
+                  // Firebase user has highest priority
+                  userStatus = firebaseUser.email;
+                  showLogout = true;
               } else if (demoMode === 'true') {
-                  currentUserSpan.textContent = 'Demo Mode';
-                  if (logoutButton) logoutButton.style.display = 'block';
+                  // Demo mode
+                  userStatus = 'Demo Mode';
+                  showLogout = true;
               } else if (apiToken) {
-                  currentUserSpan.textContent = 'API Token Active';
-                  if (logoutButton) logoutButton.style.display = 'block';
-              } else {
-                  currentUserSpan.textContent = 'Not logged in';
-                  if (logoutButton) logoutButton.style.display = 'none';
+                  // API token is active
+                  userStatus = 'API Token Active';
+                  showLogout = true;
+              }
+              
+              // Update UI
+              currentUserSpan.textContent = userStatus;
+              if (logoutButton) {
+                  logoutButton.style.display = showLogout ? 'block' : 'none';
+              }
+              
+              console.log('User status updated to:', userStatus);
+          }
+
+          // Force clear cache and reload function
+          function clearCacheAndReload() {
+              console.log('Clearing all cache and reloading...');
+              
+              // Clear localStorage
+              localStorage.clear();
+              
+              // Clear sessionStorage
+              sessionStorage.clear();
+              
+              // Clear any Firebase auth state
+              if (window.firebaseManager && window.firebaseManager.auth) {
+                  window.firebaseManager.signOut().catch(console.error);
+              }
+              
+              // Force reload with cache bypass
+              window.location.reload(true);
+          }
+
+          // Add cache clear button (for debugging)
+          function addDebugButton() {
+              const header = document.querySelector('.header');
+              if (header && !document.getElementById('debugClearCache')) {
+                  const debugButton = document.createElement('button');
+                  debugButton.id = 'debugClearCache';
+                  debugButton.textContent = 'Clear Cache';
+                  debugButton.style.cssText = `
+                      position: fixed; top: 10px; right: 10px; z-index: 9999;
+                      background: #ff4444; color: white; border: none;
+                      padding: 5px 10px; border-radius: 3px; font-size: 12px;
+                      cursor: pointer;
+                  `;
+                  debugButton.onclick = clearCacheAndReload;
+                  document.body.appendChild(debugButton);
               }
           }
 
-          // Update user info periodically
-          setInterval(updateUserInfo, 2000); // Update every 2 seconds
-
-         function showHistoricalData() {
-             if (!window.dashboard) {
-                 alert('Dashboard not initialized');
-                 return;
-             }
-             
-             const stats = window.dashboard.getHistoricalStats(24);
-             const rooms = window.dashboard.getHistoricalRooms(24);
-             
-             let content = '<h3>Historical Data (last 24 hours)</h3>';
-             content += `<p>Statistics entries: ${stats.length}</p>`;
-             content += `<p>Room entries: ${rooms.length}</p>`;
-             
-             if (stats.length > 0) {
-                 const latest = stats[stats.length - 1];
-                 content += '<h4>Latest Statistics:</h4>';
-                 content += `<p>Time: ${new Date(latest.timestamp).toLocaleString()}</p>`;
-                 content += `<p>Energy: ${latest.data.energy || 0}</p>`;
-                 content += `<p>Creeps: ${latest.data.creeps || 0}</p>`;
-                 content += `<p>CPU: ${latest.data.cpu || 0}</p>`;
-             }
-             
-             // Create modal for historical data
-             const modal = document.createElement('div');
-             modal.style.cssText = `
-                 position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                 background: rgba(0,0,0,0.8); display: flex; align-items: center;
-                 justify-content: center; z-index: 10000;
-             `;
-             modal.innerHTML = `
-                 <div style="
-                     background: #1a1a1a; border-radius: 8px; padding: 2rem;
-                     max-width: 600px; max-height: 80vh; overflow-y: auto;
-                     border: 1px solid #00ff88;
-                 ">
-                     ${content}
-                     <button onclick="this.parentElement.parentElement.remove()" 
-                             style="margin-top: 1rem; padding: 0.5rem 1rem; 
-                                    background: #00ff88; color: #000; border: none; 
-                                    border-radius: 4px; cursor: pointer;">
-                         Close
-                     </button>
-                 </div>
-             `;
-             document.body.appendChild(modal);
-         }
+        function showHistoricalData() {
+            if (!window.dashboard) {
+                alert('Dashboard not initialized');
+                return;
+            }
+            
+            const stats = window.dashboard.getHistoricalStats(24);
+            const rooms = window.dashboard.getHistoricalRooms(24);
+            
+            let content = '<h3>Historical Data (last 24 hours)</h3>';
+            content += `<p>Statistics entries: ${stats.length}</p>`;
+            content += `<p>Room entries: ${rooms.length}</p>`;
+            
+            if (stats.length > 0) {
+                const latest = stats[stats.length - 1];
+                content += '<h4>Latest Statistics:</h4>';
+                content += `<p>Time: ${new Date(latest.timestamp).toLocaleString()}</p>`;
+                content += `<p>Energy: ${latest.data.energy || 0}</p>`;
+                content += `<p>Creeps: ${latest.data.creeps || 0}</p>`;
+                content += `<p>CPU: ${latest.data.cpu || 0}</p>`;
+            }
+            
+            // Create modal for historical data
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.8); display: flex; align-items: center;
+                justify-content: center; z-index: 10000;
+            `;
+            modal.innerHTML = `
+                <div style="
+                    background: #1a1a1a; border-radius: 8px; padding: 2rem;
+                    max-width: 600px; max-height: 80vh; overflow-y: auto;
+                    border: 1px solid #00ff88;
+                ">
+                    ${content}
+                    <button onclick="this.parentElement.parentElement.remove()" 
+                            style="margin-top: 1rem; padding: 0.5rem 1rem; 
+                                   background: #00ff88; color: #000; border: none; 
+                                   border-radius: 4px; cursor: pointer;">
+                        Close
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
 
         function setupFormHandlers() {
             console.log('Setting up form handlers...');
