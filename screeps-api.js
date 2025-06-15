@@ -4,6 +4,7 @@ class ScreepsAPI {
         this.baseUrl = "https://screeps.com/api/";
         this.token = null;
         this.isConnected = false;
+        this.shard = null; // Will be auto-detected from user info
     }
 
     setToken(token) {
@@ -31,13 +32,36 @@ class ScreepsAPI {
         return this.baseUrl;
     }
 
+    needsShardParameter(endpoint) {
+        // List of endpoints that require shard parameter
+        const shardEndpoints = [
+            'user/memory',
+            'user/overview',
+            'user/rooms',
+            'user/creeps',
+            'user/structures',
+            'game/room-objects',
+            'game/room-terrain',
+            'game/room-status'
+        ];
+        
+        return shardEndpoints.some(shardEndpoint => endpoint.startsWith(shardEndpoint));
+    }
+
     async request(endpoint, options = {}) {
         const token = this.getToken();
         if (!token) {
             throw new Error("API Token nicht gesetzt");
         }
 
-        const url = this.baseUrl + endpoint;
+        // Add shard parameter if available and endpoint needs it
+        let finalEndpoint = endpoint;
+        if (this.shard && this.needsShardParameter(endpoint)) {
+            const separator = endpoint.includes('?') ? '&' : '?';
+            finalEndpoint = `${endpoint}${separator}shard=${this.shard}`;
+        }
+
+        const url = this.baseUrl + finalEndpoint;
         const headers = {
             "X-Token": token,
             "Content-Type": "application/json",
@@ -75,7 +99,18 @@ class ScreepsAPI {
     }
 
     async getUserInfo() {
-        return await this.request("auth/me");
+        const userInfo = await this.request("auth/me");
+        
+        // Auto-detect shard from user info
+        if (userInfo && userInfo.cpuShard && !this.shard) {
+            const shards = Object.keys(userInfo.cpuShard);
+            if (shards.length > 0) {
+                this.shard = shards[0]; // Use first available shard
+                console.log(`Auto-detected shard: ${this.shard}`);
+            }
+        }
+        
+        return userInfo;
     }
 
     async getMemory() {
@@ -98,71 +133,41 @@ class ScreepsAPI {
         try {
             console.log('Trying to get creeps data...');
             
-            // Versuche verschiedene bekannte Screeps API-Endpunkte
-            const endpoints = [
-                'user/memory',
-                'user/creeps', 
-                'game/user/creeps',
-                'user/overview'
-            ];
+            // Hole Räume und zähle Creeps direkt aus den Raum-Objekten
+            const rooms = await this.getUserRooms();
+            let totalCreeps = 0;
+            const creepNames = [];
             
-            for (const endpoint of endpoints) {
-                try {
-                    console.log(`Trying endpoint: ${endpoint}`);
-                    const data = await this.request(endpoint);
-                    console.log(`Response from ${endpoint}:`, data);
-                    
-                    if (endpoint === 'user/memory' && data && data.data && data.data.creeps) {
-                        const creepNames = Object.keys(data.data.creeps);
-                        console.log(`Found ${creepNames.length} creeps in memory:`, creepNames);
-                        return { creeps: creepNames, source: 'memory', count: creepNames.length };
-                    }
-                    
-                    if (endpoint === 'user/creeps' && data) {
-                        if (Array.isArray(data)) {
-                            console.log(`Found ${data.length} creeps in user/creeps array`);
-                            return { creeps: data, source: 'api', count: data.length };
-                        } else if (data.creeps && Array.isArray(data.creeps)) {
-                            console.log(`Found ${data.creeps.length} creeps in user/creeps.creeps`);
-                            return { creeps: data.creeps, source: 'api', count: data.creeps.length };
-                        } else if (typeof data === 'object') {
-                            const creepNames = Object.keys(data);
-                            console.log(`Found ${creepNames.length} creeps in user/creeps object:`, creepNames);
-                            return { creeps: creepNames, source: 'api', count: creepNames.length };
+            for (const room of rooms) {
+                if (room.data && room.data.objects) {
+                    const roomCreeps = room.data.objects.filter(obj => obj.type === 'creep');
+                    totalCreeps += roomCreeps.length;
+                    roomCreeps.forEach(creep => {
+                        if (creep.name) {
+                            creepNames.push(creep.name);
                         }
-                    }
-                    
-                    if (endpoint === 'user/overview' && data && data.shards) {
-                        // Schaue nach Creep-Informationen in Overview
-                        let totalCreeps = 0;
-                        Object.keys(data.shards).forEach(shardName => {
-                            const shard = data.shards[shardName];
-                            if (shard.stats) {
-                                Object.keys(shard.stats).forEach(roomName => {
-                                    const roomStats = shard.stats[roomName];
-                                    if (roomStats && Array.isArray(roomStats)) {
-                                        const latestStats = roomStats[roomStats.length - 1];
-                                        if (latestStats && latestStats.value && latestStats.value.creeps) {
-                                            totalCreeps += latestStats.value.creeps;
-                                        }
-                                    }
-                                });
-                            }
-                        });
-                        
-                        if (totalCreeps > 0) {
-                            console.log(`Found ${totalCreeps} creeps in overview stats`);
-                            return { creeps: [], source: 'overview', count: totalCreeps };
-                        }
-                    }
-                    
-                } catch (error) {
-                    console.warn(`Endpoint ${endpoint} failed:`, error);
-                    continue;
+                    });
+                    console.log(`Found ${roomCreeps.length} creeps in room ${room.name}`);
                 }
             }
             
-            console.log('No creeps found in any endpoint');
+            if (totalCreeps > 0) {
+                console.log(`Total creeps found: ${totalCreeps}`, creepNames);
+                return { creeps: creepNames, source: 'rooms', count: totalCreeps };
+            }
+            
+            // Fallback: Versuche Memory
+            try {
+                const memoryData = await this.request('user/memory');
+                if (memoryData && memoryData.data) {
+                    // Memory ist gzip-komprimiert, aber wir können trotzdem versuchen es zu parsen
+                    console.log('Memory data received, but it appears to be compressed');
+                }
+            } catch (error) {
+                console.warn('Memory fallback failed:', error);
+            }
+            
+            console.log('No creeps found');
             return { creeps: [], source: 'none', count: 0 };
         } catch (error) {
             console.warn('Failed to get creeps data:', error);
@@ -223,42 +228,46 @@ class ScreepsAPI {
         try {
             console.log('Fetching user rooms...');
             
-            // Hole Benutzer-Informationen
-            const userInfo = await this.getUserInfo();
-            console.log('Complete user info:', userInfo);
+            // Hole Benutzer-Informationen und Overview
+            const [userInfo, overview] = await Promise.all([
+                this.getUserInfo(),
+                this.getOverview().catch(e => { console.warn('Overview failed:', e); return null; })
+            ]);
+            
+            console.log('User info:', userInfo);
+            console.log('Overview:', overview);
             
             const rooms = [];
             let roomNames = [];
             
-            // Extrahiere Raumnamen aus userInfo - verschiedene mögliche Strukturen
-            if (userInfo.rooms && Array.isArray(userInfo.rooms)) {
-                roomNames = userInfo.rooms;
-                console.log('Room names from userInfo.rooms array:', roomNames);
-            } else if (userInfo.rooms && typeof userInfo.rooms === 'object') {
-                roomNames = Object.keys(userInfo.rooms);
-                console.log('Room names from userInfo.rooms object:', roomNames);
-            } else if (userInfo.shards) {
-                // Screeps verwendet oft shard-basierte Struktur
-                Object.keys(userInfo.shards).forEach(shardName => {
-                    const shard = userInfo.shards[shardName];
-                    console.log(`Checking shard ${shardName}:`, shard);
-                    if (shard.rooms && Array.isArray(shard.rooms)) {
-                        roomNames = roomNames.concat(shard.rooms);
-                        console.log(`Found rooms in shard ${shardName}:`, shard.rooms);
-                    }
-                });
+            // Primär: Verwende Overview-Daten (zuverlässigste Quelle)
+            if (overview && overview.shards && this.shard) {
+                const shardData = overview.shards[this.shard];
+                if (shardData && shardData.rooms && Array.isArray(shardData.rooms)) {
+                    roomNames = shardData.rooms;
+                    console.log(`Found ${roomNames.length} rooms in overview for ${this.shard}:`, roomNames);
+                }
             }
             
-            // Fallback: Schaue nach anderen möglichen Feldern
+            // Fallback: Extrahiere Raumnamen aus userInfo
             if (roomNames.length === 0) {
-                console.log('No rooms found in standard fields, checking all userInfo fields...');
-                Object.keys(userInfo).forEach(key => {
-                    const value = userInfo[key];
-                    if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string' && value[0].match(/^[WE]\d+[NS]\d+$/)) {
-                        console.log(`Found potential room names in ${key}:`, value);
-                        roomNames = roomNames.concat(value);
-                    }
-                });
+                if (userInfo.rooms && Array.isArray(userInfo.rooms)) {
+                    roomNames = userInfo.rooms;
+                    console.log('Room names from userInfo.rooms array:', roomNames);
+                } else if (userInfo.rooms && typeof userInfo.rooms === 'object') {
+                    roomNames = Object.keys(userInfo.rooms);
+                    console.log('Room names from userInfo.rooms object:', roomNames);
+                } else if (userInfo.shards) {
+                    // Screeps verwendet oft shard-basierte Struktur
+                    Object.keys(userInfo.shards).forEach(shardName => {
+                        const shard = userInfo.shards[shardName];
+                        console.log(`Checking shard ${shardName}:`, shard);
+                        if (shard.rooms && Array.isArray(shard.rooms)) {
+                            roomNames = roomNames.concat(shard.rooms);
+                            console.log(`Found rooms in shard ${shardName}:`, shard.rooms);
+                        }
+                    });
+                }
             }
             
             // Hole Daten für jeden Raum
