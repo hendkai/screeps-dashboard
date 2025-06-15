@@ -132,7 +132,7 @@
             <div class="api-key-section">
                 <h3><i class="fas fa-check-circle"></i> Ready!</h3>
                 <p>You can now use the dashboard.</p>
-                <a href="index.html" class="btn btn-primary">
+                <a href="index.html?from=login" class="btn btn-primary">
                     <i class="fas fa-tachometer-alt"></i> Go to Dashboard
                 </a>
             </div>
@@ -167,7 +167,7 @@
                 localStorage.setItem('screepsApiToken', '16b0222c-47e4-482b-bf6e-6ba76994a35e');
                 showSuccess('Demo mode activated!');
                 setTimeout(() => {
-                    window.location.href = 'index.html';
+                    window.location.href = 'index.html?from=login';
                 }, 1000);
             });
 
@@ -264,7 +264,7 @@
                         localStorage.removeItem('demoMode');
                         showSuccess('API token saved!');
                         setTimeout(() => {
-                            window.location.href = 'index.html';
+                            window.location.href = 'index.html?from=login';
                         }, 1000);
                     }
                 } catch (error) {

@@ -35,7 +35,7 @@ class ScreepsDashboard {
 
     async init() {
         this.setupEventListeners();
-        this.loadConfig();
+        await this.loadConfig();
         this.loadFromLocalStorage(); // Load historical data
         this.initCharts();
         this.initRoomVisualization();
@@ -95,11 +95,38 @@ class ScreepsDashboard {
         }
     }
 
-    loadConfig() {
-        // Check for stored token in localStorage first
+    async loadConfig() {
+        // Check if we're coming from login page (prevent redirect loop)
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromLogin = urlParams.get('from') === 'login';
+        
+        // Check if user is in demo mode
+        const demoMode = localStorage.getItem('demoMode');
+        
+        // Check for Firebase user first
+        let hasValidAuth = false;
+        if (window.firebaseManager && window.firebaseManager.isInitialized) {
+            try {
+                const user = await window.firebaseManager.getCurrentUser();
+                if (user) {
+                    console.log('Firebase user found:', user.email);
+                    // Try to load API key from Firebase
+                    const apiKey = await window.firebaseManager.getUserApiKey();
+                    if (apiKey) {
+                        localStorage.setItem('screepsApiToken', apiKey);
+                        hasValidAuth = true;
+                    }
+                }
+            } catch (error) {
+                console.log('Firebase auth check failed:', error);
+            }
+        }
+        
+        // Check for stored token in localStorage
         const storedToken = localStorage.getItem('screepsApiToken');
         if (storedToken) {
             this.api.setToken(storedToken);
+            hasValidAuth = true;
         }
         
         const token = this.api.getToken();
@@ -120,10 +147,19 @@ class ScreepsDashboard {
             if (customUrlGroup) customUrlGroup.style.display = 'block';
         }
 
-        // Check if user needs to login
-        if (!token) {
+        // Only redirect to login if no valid authentication found AND not coming from login
+        if (!hasValidAuth && !demoMode && !token && !fromLogin) {
+            console.log('No valid authentication found, redirecting to login...');
             this.redirectToLogin();
+            return;
         }
+        
+        // Clean up URL parameter if coming from login
+        if (fromLogin) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        
+        console.log('Valid authentication found, staying on dashboard');
     }
 
     redirectToLogin() {
