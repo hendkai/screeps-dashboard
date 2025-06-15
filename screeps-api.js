@@ -130,25 +130,65 @@ class ScreepsAPI {
         }
     }
 
+    async getOverview(interval = 8) {
+        return await this.request(`user/overview?interval=${interval}`);
+    }
+
+    async getWorldStatus() {
+        return await this.request("game/world-status");
+    }
+
     async getGameStats() {
         try {
-            const userInfo = await this.getUserInfo();
-            const rooms = await this.getUserRooms();
+            const [userInfo, rooms, overview] = await Promise.all([
+                this.getUserInfo(),
+                this.getUserRooms(),
+                this.getOverview().catch(() => null) // Optional, falls nicht verfügbar
+            ]);
             
             let totalEnergy = 0;
             let totalEnergyCapacity = 0;
             let totalCreeps = 0;
+            let totalSpawns = 0;
+            let totalExtensions = 0;
+            let totalTowers = 0;
+            let totalConstructionSites = 0;
+            let totalMinerals = 0;
+            let roomControlLevels = [];
             let cpuUsed = userInfo.cpu || 0;
             let cpuLimit = userInfo.cpuLimit || 20;
 
             rooms.forEach(room => {
                 if (room.data && room.data.objects) {
-                    const creeps = room.data.objects.filter(obj => obj.type === "creep");
+                    const objects = room.data.objects;
+                    
+                    // Creeps zählen
+                    const creeps = objects.filter(obj => obj.type === "creep");
                     totalCreeps += creeps.length;
 
-                    const spawns = room.data.objects.filter(obj => obj.type === "spawn");
-                    const extensions = room.data.objects.filter(obj => obj.type === "extension");
+                    // Strukturen zählen
+                    const spawns = objects.filter(obj => obj.type === "spawn");
+                    const extensions = objects.filter(obj => obj.type === "extension");
+                    const towers = objects.filter(obj => obj.type === "tower");
+                    const constructionSites = objects.filter(obj => obj.type === "constructionSite");
+                    const controller = objects.find(obj => obj.type === "controller");
+                    
+                    totalSpawns += spawns.length;
+                    totalExtensions += extensions.length;
+                    totalTowers += towers.length;
+                    totalConstructionSites += constructionSites.length;
 
+                    // Controller Level
+                    if (controller && controller.level) {
+                        roomControlLevels.push({
+                            room: room.name,
+                            level: controller.level,
+                            progress: controller.progress || 0,
+                            progressTotal: controller.progressTotal || 0
+                        });
+                    }
+
+                    // Energie berechnen
                     spawns.forEach(spawn => {
                         if (spawn.store) {
                             totalEnergy += spawn.store.energy || 0;
@@ -162,17 +202,55 @@ class ScreepsAPI {
                             totalEnergyCapacity += ext.storeCapacity || 50;
                         }
                     });
+
+                    // Mineralien zählen
+                    const minerals = objects.filter(obj => obj.type === "mineral");
+                    totalMinerals += minerals.length;
                 }
             });
 
+            // Zusätzliche Daten aus Overview
+            let overviewStats = {};
+            if (overview && overview.totals) {
+                overviewStats = {
+                    creepsProduced: overview.totals.creepsProduced || 0,
+                    energyHarvested: overview.totals.energyHarvested || 0,
+                    energyConstruction: overview.totals.energyConstruction || 0,
+                    energyControl: overview.totals.energyControl || 0,
+                    energyCreeps: overview.totals.energyCreeps || 0
+                };
+            }
+
             return {
+                // Basis-Statistiken
                 energy: totalEnergy,
                 energyCapacity: totalEnergyCapacity,
                 creeps: totalCreeps,
                 cpu: cpuUsed,
                 cpuLimit: cpuLimit,
                 rooms: rooms.length,
-                roomsData: rooms
+                roomsData: rooms,
+                
+                // Erweiterte Statistiken
+                spawns: totalSpawns,
+                extensions: totalExtensions,
+                towers: totalTowers,
+                constructionSites: totalConstructionSites,
+                minerals: totalMinerals,
+                roomControlLevels: roomControlLevels,
+                
+                // Benutzer-Info
+                gcl: userInfo.gcl || 0,
+                credits: userInfo.credits || 0,
+                
+                // Overview-Statistiken
+                ...overviewStats,
+                
+                // Berechnete Werte
+                energyPercentage: totalEnergyCapacity > 0 ? Math.round((totalEnergy / totalEnergyCapacity) * 100) : 0,
+                cpuPercentage: cpuLimit > 0 ? Math.round((cpuUsed / cpuLimit) * 100) : 0,
+                avgRoomLevel: roomControlLevels.length > 0 ? 
+                    Math.round(roomControlLevels.reduce((sum, room) => sum + room.level, 0) / roomControlLevels.length * 10) / 10 : 0
             };
         } catch (error) {
             console.error('Failed to get game stats:', error);

@@ -75,8 +75,8 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
             margin-bottom: 30px;
         }
 
@@ -351,6 +351,46 @@
                 <div class="value" id="roomCount">-</div>
                 <div class="label">Räume</div>
             </div>
+            <div class="stat-card">
+                <div class="icon"><i class="fas fa-star"></i></div>
+                <div class="value" id="gclValue">-</div>
+                <div class="label">GCL</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="fas fa-coins"></i></div>
+                <div class="value" id="creditsValue">-</div>
+                <div class="label">Credits</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="fas fa-industry"></i></div>
+                <div class="value" id="spawnsValue">-</div>
+                <div class="label">Spawns</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="fas fa-shield-alt"></i></div>
+                <div class="value" id="towersValue">-</div>
+                <div class="label">Türme</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="fas fa-hammer"></i></div>
+                <div class="value" id="constructionValue">-</div>
+                <div class="label">Baustellen</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="fas fa-gem"></i></div>
+                <div class="value" id="mineralsValue">-</div>
+                <div class="label">Mineralien</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="fas fa-level-up-alt"></i></div>
+                <div class="value" id="avgRoomLevel">-</div>
+                <div class="label">Ø Raum Level</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="fas fa-pickaxe"></i></div>
+                <div class="value" id="energyHarvested">-</div>
+                <div class="label">Energie geerntet</div>
+            </div>
         </div>
 
         <!-- Charts Section -->
@@ -363,6 +403,14 @@
                 <div class="chart-container">
                     <h3><i class="fas fa-chart-area"></i> CPU Verlauf</h3>
                     <canvas id="cpuChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3><i class="fas fa-chart-bar"></i> Creeps Verlauf</h3>
+                    <canvas id="creepsChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3><i class="fas fa-chart-pie"></i> Raum Level Verteilung</h3>
+                    <canvas id="roomLevelChart"></canvas>
                 </div>
             </div>
         </div>
@@ -379,6 +427,18 @@
                 <div class="data-card">
                     <h3><i class="fas fa-map"></i> Räume</h3>
                     <ul id="roomsList" class="data-list">
+                        <li class="data-item">Keine Daten verfügbar</li>
+                    </ul>
+                </div>
+                <div class="data-card">
+                    <h3><i class="fas fa-crown"></i> Controller Status</h3>
+                    <ul id="controllersList" class="data-list">
+                        <li class="data-item">Keine Daten verfügbar</li>
+                    </ul>
+                </div>
+                <div class="data-card">
+                    <h3><i class="fas fa-chart-line"></i> Produktions-Statistiken</h3>
+                    <ul id="productionStats" class="data-list">
                         <li class="data-item">Keine Daten verfügbar</li>
                     </ul>
                 </div>
