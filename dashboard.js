@@ -67,7 +67,22 @@ class ScreepsDashboard {
         }
     }
 
+    destroyCharts() {
+        // Destroy existing charts to prevent "Canvas is already in use" error
+        if (this.charts.energy) {
+            this.charts.energy.destroy();
+            this.charts.energy = null;
+        }
+        if (this.charts.cpu) {
+            this.charts.cpu.destroy();
+            this.charts.cpu = null;
+        }
+    }
+
     initCharts() {
+        // Destroy existing charts first
+        this.destroyCharts();
+        
         // Get canvas elements and set maximum dimensions
         const energyCanvas = document.getElementById('energyChart');
         const cpuCanvas = document.getElementById('cpuChart');
@@ -397,6 +412,34 @@ class ScreepsDashboard {
             clearInterval(this.intervalId);
             this.intervalId = null;
             this.addConsoleMessage('info', 'Dashboard Updates gestoppt');
+        }
+    }
+
+    // Method to handle configuration updates
+    updateConfiguration(token, serverUrl, customUrl) {
+        try {
+            if (!token) {
+                throw new Error('API Token ist erforderlich');
+            }
+            
+            this.api.setToken(token);
+            
+            if (serverUrl === 'custom' && customUrl) {
+                this.api.setServerUrl(customUrl);
+            } else if (serverUrl !== 'custom') {
+                this.api.setServerUrl(serverUrl);
+            }
+            
+            this.addConsoleMessage('success', 'Konfiguration gespeichert');
+            
+            // Restart dashboard
+            this.stopUpdating();
+            setTimeout(() => this.startUpdating(), 1000);
+            
+            return true;
+        } catch (error) {
+            this.addConsoleMessage('error', error.message);
+            return false;
         }
     }
 }
