@@ -1155,24 +1155,32 @@ class ScreepsDashboard {
         console.log('=== Testing Room Visualization ===');
         
         try {
-            // Test direct API calls
+            // Test direct API calls with detailed logging
             console.log('Testing direct API calls...');
+            console.log('API Token:', this.api.getToken());
             
             const roomObjectsResponse = await fetch('https://screeps.com/api/game/room-objects?room=W26N53&shard=shard3', {
-                headers: { 'X-Token': this.api.getToken() }
+                headers: { 'X-Token': this.api.getToken() },
+                mode: 'cors'
             });
+            
+            console.log('Room objects response status:', roomObjectsResponse.status);
+            console.log('Room objects response headers:', [...roomObjectsResponse.headers.entries()]);
             
             if (roomObjectsResponse.ok) {
                 const roomObjectsData = await roomObjectsResponse.json();
                 console.log('Direct room objects API response:', roomObjectsData);
                 
-                if (roomObjectsData.objects && roomObjectsData.objects.length > 0) {
+                if (roomObjectsData.ok && roomObjectsData.objects && roomObjectsData.objects.length > 0) {
                     console.log(`Found ${roomObjectsData.objects.length} objects directly from API`);
                     
                     // Test terrain API
                     const terrainResponse = await fetch('https://screeps.com/api/game/room-terrain?room=W26N53&shard=shard3', {
-                        headers: { 'X-Token': this.api.getToken() }
+                        headers: { 'X-Token': this.api.getToken() },
+                        mode: 'cors'
                     });
+                    
+                    console.log('Terrain response status:', terrainResponse.status);
                     
                     if (terrainResponse.ok) {
                         const terrainData = await terrainResponse.json();
@@ -1181,12 +1189,19 @@ class ScreepsDashboard {
                         // Manually set room data and draw
                         this.roomVisualization.roomData = {
                             objects: roomObjectsData.objects,
-                            terrain: terrainData.terrain,
+                            terrain: terrainData.terrain || [],
                             name: 'W26N53'
                         };
                         
                         console.log('Manually set room data:', this.roomVisualization.roomData);
-                        this.drawRoomMap();
+                        
+                        // Force draw with test data if no real data
+                        if (!this.roomVisualization.roomData.objects.length) {
+                            this.drawTestRoom();
+                        } else {
+                            this.drawRoomMap();
+                        }
+                        
                         this.updateRoomInfo();
                         
                         this.addConsoleMessage('success', `Direkte API-Verbindung erfolgreich! ${roomObjectsData.objects.length} Objekte geladen.`);
@@ -1198,17 +1213,71 @@ class ScreepsDashboard {
                         }
                         
                         return;
+                    } else {
+                        const terrainError = await terrainResponse.text();
+                        console.error('Terrain API error:', terrainError);
                     }
+                } else {
+                    console.log('No objects found or API error:', roomObjectsData);
                 }
+            } else {
+                const errorText = await roomObjectsResponse.text();
+                console.error('Room objects API error:', errorText);
             }
             
-            console.log('Direct API failed, trying selectRoom method...');
-            await this.selectRoom('W26N53');
+            console.log('Direct API failed, drawing test room...');
+            this.drawTestRoom();
             
         } catch (error) {
             console.error('Test room visualization failed:', error);
             this.addConsoleMessage('error', `Test fehlgeschlagen: ${error.message}`);
+            this.drawTestRoom();
         }
+    }
+
+    drawTestRoom() {
+        console.log('Drawing test room with sample data...');
+        
+        // Create test data to verify the drawing functions work
+        const testObjects = [
+            { type: 'spawn', x: 15, y: 9, name: 'Spawn1' },
+            { type: 'extension', x: 16, y: 9 },
+            { type: 'extension', x: 14, y: 9 },
+            { type: 'extension', x: 15, y: 8 },
+            { type: 'creep', x: 20, y: 15, name: 'TestCreep' },
+            { type: 'controller', x: 42, y: 35, level: 2 },
+            { type: 'source', x: 14, y: 3 },
+            { type: 'mineral', x: 14, y: 34, mineralType: 'K' }
+        ];
+        
+        // Create test terrain
+        const testTerrain = [];
+        for (let y = 0; y < 50; y++) {
+            for (let x = 0; x < 50; x++) {
+                let type = 'plain';
+                // Add some walls around the edges
+                if (x === 0 || x === 49 || y === 0 || y === 49) {
+                    type = 'wall';
+                }
+                // Add some swamps
+                if ((x > 10 && x < 15 && y > 20 && y < 25) || (x > 30 && x < 35 && y > 10 && y < 15)) {
+                    type = 'swamp';
+                }
+                testTerrain.push({ x, y, type });
+            }
+        }
+        
+        this.roomVisualization.roomData = {
+            objects: testObjects,
+            terrain: testTerrain,
+            name: 'W26N53 (Test)'
+        };
+        
+        console.log('Test room data:', this.roomVisualization.roomData);
+        this.drawRoomMap();
+        this.updateRoomInfo();
+        
+        this.addConsoleMessage('info', 'Test-Raum mit Beispieldaten geladen');
     }
 
     async tryLoadDefaultRoom() {
