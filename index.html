@@ -345,6 +345,22 @@
             border-color: #00ff88;
         }
 
+        .btn-primary {
+            padding: 0.5rem 1rem;
+            background: #00ff88;
+            border: 1px solid #00ff88;
+            border-radius: 6px;
+            color: #000;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: #00cc6a;
+            border-color: #00cc6a;
+        }
+
         .room-map-container {
             display: flex;
             gap: 2rem;
@@ -655,6 +671,9 @@
                 </select>
                 <button id="refreshRoomBtn" class="btn-secondary">
                     <i class="fas fa-sync-alt"></i> Aktualisieren
+                </button>
+                <button id="loadW26N53Btn" class="btn-primary" onclick="dashboard.selectRoom('W26N53')">
+                    <i class="fas fa-map"></i> W26N53 laden
                 </button>
             </div>
 

@@ -41,6 +41,11 @@ class ScreepsDashboard {
             setTimeout(() => {
                 this.tryLoadDefaultRoom();
             }, 5000);
+            // Force load W26N53 for testing
+            setTimeout(() => {
+                console.log('Force loading W26N53 for testing...');
+                this.selectRoom('W26N53');
+            }, 3000);
         } else {
             setTimeout(() => {
                 if (typeof openConfigModal === 'function') {
@@ -335,7 +340,7 @@ class ScreepsDashboard {
             this.updateRoomsDisplay(stats.roomsData);
             this.updateControllersDisplay(stats.roomControlLevels);
             this.updateProductionStats(stats);
-            await this.updateConsole();
+            // await this.updateConsole(); // Disabled due to API 404 error
             
             // Update room management features
             await this.updateRoomManagement();
@@ -635,7 +640,8 @@ class ScreepsDashboard {
 
     async updateConsole() {
         try {
-            const consoleData = await this.api.getConsole();
+            // Console API endpoint doesn't exist, skip for now
+            // const consoleData = await this.api.getConsole();
             // Console data display could be implemented here
         } catch (error) {
             // Silently fail for console updates
@@ -715,8 +721,10 @@ class ScreepsDashboard {
     // Room Visualization Methods
     initRoomVisualization() {
         this.roomVisualization.canvas = document.getElementById('roomMap');
+        console.log('Room visualization canvas:', this.roomVisualization.canvas);
         if (this.roomVisualization.canvas) {
             this.roomVisualization.ctx = this.roomVisualization.canvas.getContext('2d');
+            console.log('Room visualization context:', this.roomVisualization.ctx);
             
             // Setup room selector
             const roomSelect = document.getElementById('roomSelect');
