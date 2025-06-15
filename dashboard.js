@@ -21,12 +21,22 @@ class ScreepsDashboard {
         };
         this.roomsData = new Map();
         
+        // Data storage for historical data
+        this.lastStats = null;
+        this.lastRooms = null;
+        this.dataHistory = {
+            stats: [],
+            rooms: [],
+            maxEntries: 100
+        };
+        
         this.init();
     }
 
     init() {
         this.setupEventListeners();
         this.loadConfig();
+        this.loadFromLocalStorage(); // Load historical data
         this.initCharts();
         this.initRoomVisualization();
         this.initMultiRoomManagement();
@@ -74,6 +84,12 @@ class ScreepsDashboard {
     }
 
     loadConfig() {
+        // Check for stored token in localStorage first
+        const storedToken = localStorage.getItem('screepsApiToken');
+        if (storedToken) {
+            this.api.setToken(storedToken);
+        }
+        
         const token = this.api.getToken();
         const serverUrl = this.api.getServerUrl();
         
@@ -91,6 +107,61 @@ class ScreepsDashboard {
             if (customUrlElement) customUrlElement.value = serverUrl;
             if (customUrlGroup) customUrlGroup.style.display = 'block';
         }
+
+        // Check if user needs to login
+        if (!token) {
+            this.showLoginPrompt();
+        }
+    }
+
+    showLoginPrompt() {
+        const loginPrompt = document.createElement('div');
+        loginPrompt.id = 'loginPrompt';
+        loginPrompt.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+        
+        loginPrompt.innerHTML = `
+            <div style="
+                background: rgba(0, 0, 0, 0.8);
+                border-radius: 12px;
+                border: 1px solid rgba(0, 255, 136, 0.3);
+                padding: 2rem;
+                text-align: center;
+                max-width: 400px;
+                width: 90%;
+            ">
+                <h2 style="color: #00ff88; margin-bottom: 1rem;">
+                    <i class="fas fa-key"></i> Login erforderlich
+                </h2>
+                <p style="color: #ccc; margin-bottom: 2rem;">
+                    Du musst dich anmelden, um das Dashboard zu verwenden.
+                </p>
+                <a href="login.html" style="
+                    display: inline-block;
+                    padding: 0.75rem 1.5rem;
+                    background: #00ff88;
+                    color: #000;
+                    text-decoration: none;
+                    border-radius: 6px;
+                    font-weight: 600;
+                    transition: all 0.3s ease;
+                ">
+                    <i class="fas fa-sign-in-alt"></i> Zur Anmeldung
+                </a>
+            </div>
+        `;
+        
+        document.body.appendChild(loginPrompt);
     }
 
     destroyCharts() {
@@ -355,6 +426,10 @@ class ScreepsDashboard {
     }
 
     updateStats(stats) {
+        // Store current stats for historical data
+        this.lastStats = stats;
+        this.saveStatsToHistory(stats);
+        
         const elements = {
             energyValue: document.getElementById('energyValue'),
             creepCount: document.getElementById('creepCount'),
@@ -1607,6 +1682,84 @@ class ScreepsDashboard {
             console.error('Error updating room management:', error);
             this.addConsoleMessage('error', `Fehler beim Aktualisieren der Raum-Verwaltung: ${error.message}`);
         }
+    }
+
+    // Data storage methods
+    saveStatsToHistory(stats) {
+        const timestamp = new Date().toISOString();
+        const entry = { timestamp, data: stats };
+        
+        this.dataHistory.stats.push(entry);
+        
+        // Keep only the last maxEntries
+        if (this.dataHistory.stats.length > this.dataHistory.maxEntries) {
+            this.dataHistory.stats.shift();
+        }
+        
+        // Save to localStorage
+        this.saveToLocalStorage();
+    }
+
+    saveRoomsToHistory(roomsData) {
+        const timestamp = new Date().toISOString();
+        const entry = { timestamp, data: roomsData };
+        
+        this.dataHistory.rooms.push(entry);
+        
+        // Keep only the last maxEntries
+        if (this.dataHistory.rooms.length > this.dataHistory.maxEntries) {
+            this.dataHistory.rooms.shift();
+        }
+        
+        // Save to localStorage
+        this.saveToLocalStorage();
+    }
+
+    saveToLocalStorage() {
+        try {
+            const dataToSave = {
+                stats: this.dataHistory.stats.slice(-20), // Keep last 20 entries
+                rooms: this.dataHistory.rooms.slice(-20),
+                lastUpdate: new Date().toISOString()
+            };
+            
+            localStorage.setItem('screepsHistoricalData', JSON.stringify(dataToSave));
+        } catch (error) {
+            console.warn('Failed to save data to localStorage:', error);
+        }
+    }
+
+    loadFromLocalStorage() {
+        try {
+            const savedData = localStorage.getItem('screepsHistoricalData');
+            if (savedData) {
+                const parsed = JSON.parse(savedData);
+                this.dataHistory.stats = parsed.stats || [];
+                this.dataHistory.rooms = parsed.rooms || [];
+                console.log('Historical data loaded from localStorage');
+            }
+        } catch (error) {
+            console.warn('Failed to load data from localStorage:', error);
+        }
+    }
+
+    exportData() {
+        const exportData = {
+            stats: this.dataHistory.stats,
+            rooms: this.dataHistory.rooms,
+            exportDate: new Date().toISOString(),
+            version: '1.0'
+        };
+        
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `screeps-data-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 }
 

@@ -681,6 +681,12 @@
                 <button id="drawTestBtn" class="btn-primary" onclick="dashboard.drawTestRoom()">
                     <i class="fas fa-eye"></i> Test Room
                 </button>
+                <button id="exportDataBtn" class="btn-primary" onclick="dashboard.exportData()">
+                    <i class="fas fa-download"></i> Daten exportieren
+                </button>
+                <button id="showHistoryBtn" class="btn-primary" onclick="showHistoricalData()">
+                    <i class="fas fa-history"></i> Verlauf anzeigen
+                </button>
             </div>
 
             <!-- Room Map Container -->
@@ -858,6 +864,53 @@
                 isInitialized = false;
             }
         });
+
+        function showHistoricalData() {
+            if (!window.dashboard) {
+                alert('Dashboard nicht initialisiert');
+                return;
+            }
+            
+            const stats = window.dashboard.getHistoricalStats(24);
+            const rooms = window.dashboard.getHistoricalRooms(24);
+            
+            let content = '<h3>Historische Daten (letzte 24 Stunden)</h3>';
+            content += `<p>Statistik-Einträge: ${stats.length}</p>`;
+            content += `<p>Raum-Einträge: ${rooms.length}</p>`;
+            
+            if (stats.length > 0) {
+                const latest = stats[stats.length - 1];
+                content += '<h4>Neueste Statistiken:</h4>';
+                content += `<p>Zeit: ${new Date(latest.timestamp).toLocaleString()}</p>`;
+                content += `<p>Energie: ${latest.data.energy || 0}</p>`;
+                content += `<p>Creeps: ${latest.data.creeps || 0}</p>`;
+                content += `<p>CPU: ${latest.data.cpu || 0}</p>`;
+            }
+            
+            // Create modal for historical data
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.8); display: flex; align-items: center;
+                justify-content: center; z-index: 10000;
+            `;
+            modal.innerHTML = `
+                <div style="
+                    background: #1a1a1a; border-radius: 8px; padding: 2rem;
+                    max-width: 600px; max-height: 80vh; overflow-y: auto;
+                    border: 1px solid #00ff88;
+                ">
+                    ${content}
+                    <button onclick="this.parentElement.parentElement.remove()" 
+                            style="margin-top: 1rem; padding: 0.5rem 1rem; 
+                                   background: #00ff88; color: #000; border: none; 
+                                   border-radius: 4px; cursor: pointer;">
+                        Schließen
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
 
         function setupFormHandlers() {
             console.log('Setting up form handlers...');
