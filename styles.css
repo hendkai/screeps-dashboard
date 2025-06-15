@@ -283,6 +283,10 @@ body {
     color: #00ff88;
 }
 
+.message.info {
+    color: #4ecdc4;
+}
+
 .modal {
     display: none;
     position: fixed;
