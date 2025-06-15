@@ -110,58 +110,14 @@ class ScreepsDashboard {
 
         // Check if user needs to login
         if (!token) {
-            this.showLoginPrompt();
+            this.redirectToLogin();
         }
     }
 
-    showLoginPrompt() {
-        const loginPrompt = document.createElement('div');
-        loginPrompt.id = 'loginPrompt';
-        loginPrompt.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.9);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-        `;
-        
-        loginPrompt.innerHTML = `
-            <div style="
-                background: rgba(0, 0, 0, 0.8);
-                border-radius: 12px;
-                border: 1px solid rgba(0, 255, 136, 0.3);
-                padding: 2rem;
-                text-align: center;
-                max-width: 400px;
-                width: 90%;
-            ">
-                <h2 style="color: #00ff88; margin-bottom: 1rem;">
-                    <i class="fas fa-key"></i> Login erforderlich
-                </h2>
-                <p style="color: #ccc; margin-bottom: 2rem;">
-                    Du musst dich anmelden, um das Dashboard zu verwenden.
-                </p>
-                <a href="login.html" style="
-                    display: inline-block;
-                    padding: 0.75rem 1.5rem;
-                    background: #00ff88;
-                    color: #000;
-                    text-decoration: none;
-                    border-radius: 6px;
-                    font-weight: 600;
-                    transition: all 0.3s ease;
-                ">
-                    <i class="fas fa-sign-in-alt"></i> Zur Anmeldung
-                </a>
-            </div>
-        `;
-        
-        document.body.appendChild(loginPrompt);
+    redirectToLogin() {
+        // Redirect to login page if no token is found
+        console.log('No API token found, redirecting to login...');
+        window.location.href = 'login.html';
     }
 
     destroyCharts() {

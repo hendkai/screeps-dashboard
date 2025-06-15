@@ -519,6 +519,9 @@
         <!-- Header -->
         <div class="header">
             <h1><i class="fas fa-robot"></i> Screeps Dashboard</h1>
+            <div class="user-info" id="userInfo" style="color: #00ff88; margin-bottom: 0.5rem;">
+                <i class="fas fa-user"></i> <span id="currentUser">Lade Benutzer...</span>
+            </div>
             <div id="connectionStatus" class="connection-status disconnected">
                 <i class="fas fa-circle"></i>
                 <span>Getrennt</span>
@@ -686,6 +689,9 @@
                 </button>
                 <button id="showHistoryBtn" class="btn-primary" onclick="showHistoricalData()">
                     <i class="fas fa-history"></i> Verlauf anzeigen
+                </button>
+                <button id="logoutBtn" class="btn-secondary" onclick="logout()" style="background: #f44336;">
+                    <i class="fas fa-sign-out-alt"></i> Abmelden
                 </button>
             </div>
 
@@ -859,17 +865,49 @@
                 // Setup form event listener AFTER dashboard is initialized
                 setupFormHandlers();
                 
+                // Update user info
+                updateUserInfo();
+                
             } catch (error) {
                 console.error('Failed to initialize dashboard:', error);
                 isInitialized = false;
             }
         });
 
-        function showHistoricalData() {
-            if (!window.dashboard) {
-                alert('Dashboard nicht initialisiert');
-                return;
-            }
+                 function logout() {
+             // Clear stored data
+             localStorage.removeItem('screepsApiToken');
+             localStorage.removeItem('demoMode');
+             localStorage.removeItem('screepsHistoricalData');
+             
+             // Sign out from Firebase if available
+             if (window.firebaseManager && window.firebaseManager.auth) {
+                 window.firebaseManager.signOut().catch(console.error);
+             }
+             
+                           // Redirect to login
+              window.location.href = 'login.html';
+          }
+
+          function updateUserInfo() {
+              const currentUserSpan = document.getElementById('currentUser');
+              const demoMode = localStorage.getItem('demoMode');
+              const apiToken = localStorage.getItem('screepsApiToken');
+              
+              if (demoMode === 'true') {
+                  currentUserSpan.textContent = 'Demo-Modus';
+              } else if (apiToken) {
+                  currentUserSpan.textContent = 'API-Token gesetzt';
+              } else {
+                  currentUserSpan.textContent = 'Nicht angemeldet';
+              }
+          }
+
+         function showHistoricalData() {
+             if (!window.dashboard) {
+                 alert('Dashboard nicht initialisiert');
+                 return;
+             }
             
             const stats = window.dashboard.getHistoricalStats(24);
             const rooms = window.dashboard.getHistoricalRooms(24);
