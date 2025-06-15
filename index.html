@@ -1005,11 +1005,24 @@
             try {
                 console.log('Initializing dashboard...');
                 
-                // Initialize Firebase first
+                // Initialize Firebase first and wait for it to be fully ready
                 if (window.firebaseManager) {
                     console.log('Initializing Firebase...');
                     await window.firebaseManager.init();
-                    console.log('Firebase initialized');
+                    
+                    // Wait a bit more to ensure Firebase is fully ready
+                    let retries = 0;
+                    while (!window.firebaseManager.isInitialized && retries < 20) {
+                        console.log('Waiting for Firebase to be fully ready...');
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        retries++;
+                    }
+                    
+                    if (window.firebaseManager.isInitialized) {
+                        console.log('Firebase fully initialized and ready');
+                    } else {
+                        console.warn('Firebase initialization timeout');
+                    }
                 }
                 
                 window.dashboard = new ScreepsDashboard();

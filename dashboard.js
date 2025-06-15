@@ -103,19 +103,31 @@ class ScreepsDashboard {
         // Check if user is in demo mode
         const demoMode = localStorage.getItem('demoMode');
         
-        // Check for Firebase user first
+        // Wait for Firebase to be fully ready if it exists
         let hasValidAuth = false;
-        if (window.firebaseManager && window.firebaseManager.isInitialized) {
+        if (window.firebaseManager) {
             try {
-                const user = await window.firebaseManager.getCurrentUser();
-                if (user) {
-                    console.log('Firebase user found:', user.email);
-                    // Try to load API key from Firebase
-                    const apiKey = await window.firebaseManager.getUserApiKey();
-                    if (apiKey) {
-                        localStorage.setItem('screepsApiToken', apiKey);
-                        hasValidAuth = true;
+                // Wait a bit longer for Firebase to be fully initialized
+                let retries = 0;
+                while (!window.firebaseManager.isInitialized && retries < 10) {
+                    console.log('Waiting for Firebase to initialize...');
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    retries++;
+                }
+                
+                if (window.firebaseManager.isInitialized) {
+                    const user = await window.firebaseManager.getCurrentUser();
+                    if (user) {
+                        console.log('Firebase user found:', user.email);
+                        // Try to load API key from Firebase
+                        const apiKey = await window.firebaseManager.getUserApiKey();
+                        if (apiKey) {
+                            localStorage.setItem('screepsApiToken', apiKey);
+                            hasValidAuth = true;
+                        }
                     }
+                } else {
+                    console.log('Firebase not fully initialized after waiting');
                 }
             } catch (error) {
                 console.log('Firebase auth check failed:', error);
@@ -150,7 +162,10 @@ class ScreepsDashboard {
         // Only redirect to login if no valid authentication found AND not coming from login
         if (!hasValidAuth && !demoMode && !token && !fromLogin) {
             console.log('No valid authentication found, redirecting to login...');
-            this.redirectToLogin();
+            // Add a small delay to ensure all checks are complete
+            setTimeout(() => {
+                this.redirectToLogin();
+            }, 500);
             return;
         }
         
@@ -159,6 +174,14 @@ class ScreepsDashboard {
             window.history.replaceState({}, document.title, window.location.pathname);
         }
         
+        console.log('Authentication check complete:', {
+            hasValidAuth,
+            demoMode: !!demoMode,
+            token: !!token,
+            fromLogin,
+            firebaseInitialized: window.firebaseManager?.isInitialized,
+            firebaseUser: window.firebaseManager?.user?.email
+        });
         console.log('Valid authentication found, staying on dashboard');
     }
 
