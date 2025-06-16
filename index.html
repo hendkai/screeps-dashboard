@@ -1143,9 +1143,38 @@
                 
                 // Setup Firebase auth listener after Firebase is ready
                 if (window.firebaseManager && window.firebaseManager.auth) {
-                    window.firebaseManager.auth.onAuthStateChanged((user) => {
+                    window.firebaseManager.auth.onAuthStateChanged(async (user) => {
                         console.log('Firebase auth state changed:', user?.email);
                         setTimeout(updateUserInfo, 100);
+                        
+                        // If user is logged in, check for API key and prompt for password
+                        if (user && window.dashboard) {
+                            try {
+                                const hasApiKey = await window.firebaseManager.hasApiKey();
+                                if (hasApiKey && !window.dashboard.api.getToken()) {
+                                    // User has encrypted API key but it's not loaded yet
+                                    console.log('User has encrypted API key, prompting for master password...');
+                                    
+                                    setTimeout(async () => {
+                                        try {
+                                            const apiKey = await window.firebaseManager.promptForMasterPasswordAndLoadApiKey();
+                                            if (apiKey) {
+                                                window.dashboard.api.setToken(apiKey);
+                                                window.dashboard.addConsoleMessage('success', 'API-Schlüssel erfolgreich geladen');
+                                                window.dashboard.startUpdating();
+                                            }
+                                        } catch (error) {
+                                            console.error('Failed to load API key:', error);
+                                            window.dashboard.addConsoleMessage('error', 'Fehler beim Laden des API-Schlüssels: ' + error.message);
+                                            // Show config modal as fallback
+                                            setTimeout(() => openConfigModal(), 1000);
+                                        }
+                                    }, 1000); // Give dashboard time to fully initialize
+                                }
+                            } catch (error) {
+                                console.error('Error checking API key:', error);
+                            }
+                        }
                     });
                 }
                 

@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Screeps Dashboard",
+  "version": "1.0.0",
+  "description": "Firebase-powered dashboard for Screeps game monitoring",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://screeps.com/*",
+    "https://*.firebaseapp.com/*",
+    "https://*.googleapis.com/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["*.js", "*.html", "*.css"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://www.googleapis.com https://apis.google.com; object-src 'self'"
+  },
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "Screeps Dashboard"
+  },
+  "icons": {
+    "16": "favicon.ico",
+    "48": "favicon.ico",
+    "128": "favicon.ico"
+  }
+} 

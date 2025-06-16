@@ -326,11 +326,15 @@ class FirebaseManager {
         if (!this.user) return;
 
         try {
-            // Load API key
-            const apiKey = await this.getUserApiKey();
-            if (apiKey && window.dashboard) {
-                window.dashboard.api.setToken(apiKey);
-                console.log('API key loaded from Firebase');
+            // Check if user has API key stored
+            const doc = await this.db.collection('users').doc(this.user.uid).get();
+            if (doc.exists && doc.data().encryptedApiKey) {
+                console.log('User has API key stored, but password required for decryption');
+                // The API key will be loaded when user enters their master password in the dashboard
+                return;
+            } else {
+                console.log('No API key found for user');
+                return;
             }
 
             // Load latest game data
@@ -379,6 +383,52 @@ class FirebaseManager {
         setInterval(() => {
             this.saveCurrentGameState();
         }, 5 * 60 * 1000); // 5 minutes
+    }
+
+    // Dashboard helper function - prompt for master password and load API key
+    async promptForMasterPasswordAndLoadApiKey() {
+        if (!this.user) {
+            throw new Error('User not authenticated');
+        }
+
+        // Check if user has encrypted API key
+        const doc = await this.db.collection('users').doc(this.user.uid).get();
+        if (!doc.exists || !doc.data().encryptedApiKey) {
+            throw new Error('No API key found. Please set up your API key first.');
+        }
+
+        const data = doc.data();
+        if (!data.isEncrypted) {
+            // Unencrypted key (legacy), return directly
+            return data.encryptedApiKey;
+        }
+
+        // Prompt for master password
+        const masterPassword = prompt('Bitte geben Sie Ihr Master-Passwort ein, um den API-Schlüssel zu entschlüsseln:');
+        if (!masterPassword) {
+            throw new Error('Master password required');
+        }
+
+        try {
+            const apiKey = await this.getSecureApiKey(masterPassword);
+            console.log('API key successfully decrypted');
+            return apiKey;
+        } catch (error) {
+            throw new Error('Falsches Passwort oder beschädigter API-Schlüssel');
+        }
+    }
+
+    // Check if user has API key (without trying to decrypt)
+    async hasApiKey() {
+        if (!this.user) return false;
+        
+        try {
+            const doc = await this.db.collection('users').doc(this.user.uid).get();
+            return doc.exists && doc.data().encryptedApiKey;
+        } catch (error) {
+            console.error('Error checking API key:', error);
+            return false;
+        }
     }
 }
 

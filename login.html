@@ -284,11 +284,17 @@
                         document.getElementById('signUpSection').style.display = 'none';
                         
                         // Check if user has API key
-                        const apiKey = await window.firebaseManager.getUserApiKey();
-                        if (apiKey) {
-                            // User has API key, show dashboard link
-                            document.getElementById('dashboardLink').style.display = 'block';
-                        } else {
+                        try {
+                            const doc = await window.firebaseManager.db.collection('users').doc(user.uid).get();
+                            if (doc.exists && doc.data().encryptedApiKey) {
+                                // User has API key saved, show dashboard link
+                                document.getElementById('dashboardLink').style.display = 'block';
+                            } else {
+                                // User needs to set API key
+                                document.getElementById('apiKeySection').style.display = 'block';
+                            }
+                        } catch (error) {
+                            console.error('Error checking API key:', error);
                             // User needs to set API key
                             document.getElementById('apiKeySection').style.display = 'block';
                         }
